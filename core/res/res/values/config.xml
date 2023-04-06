@@ -7613,4 +7613,9 @@
     <string name="proximity_provider_service_package_name" translatable="false"></string>
     <string name="proximity_provider_service_class_name" translatable="false"></string>
 
+
+    <bool name="config_Google_apps_can_have_special_access_to_accelerators">false</bool>
+    <java-symbol type="bool" name="config_Google_apps_can_have_special_access_to_accelerators" />
+    <bool name="config_GoogleCamera_needs_seinfo_for_access_to_accelerators">false</bool>
+    <java-symbol type="bool" name="config_GoogleCamera_needs_seinfo_for_access_to_accelerators" />
 </resources>
