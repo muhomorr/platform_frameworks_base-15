@@ -121,7 +121,8 @@ public class WebViewZygote {
                     null, // instructionSet
                     Process.FIRST_ISOLATED_UID,
                     Integer.MAX_VALUE,  // TODO(b/123615476) deal with user-id ranges properly
-                    sPackage.applicationInfo);
+                    sPackage.applicationInfo,
+                    null /* flatExtraArgs */);
             ZygoteProcess.waitForConnectionToZygote(
                     sZygote.getZygoteProcessAsManaged().getPrimarySocketAddress());
             sZygote.getZygoteProcessAsManaged().preloadApp(sPackage.applicationInfo, abi);

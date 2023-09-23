@@ -791,7 +791,8 @@ public class Process {
                                            boolean bindMountAppStorageDirs,
                                            boolean bindMountSystemOverrides,
                                            long startSeq,
-                                           @Nullable String[] zygoteArgs) {
+                                           @Nullable String[] zygoteArgs,
+                                           @Nullable String flatExtraArgs) {
         boolean isNative = android.os.Flags.nativeFrameworkPrototype()
                 && (zygotePolicyFlags & ZYGOTE_POLICY_FLAG_NATIVE_PROCESS) != 0;
         IZygoteProcess process = isNative ? NATIVE_ZYGOTE_PROCESS : ZYGOTE_PROCESS;
@@ -801,7 +802,7 @@ public class Process {
                     zygotePolicyFlags, isTopApp, disabledCompatChanges,
                     enabledCompatChanges, useDeliQueue,
                     pkgDataInfoMap, whitelistedDataInfoMap, bindMountAppsData,
-                    bindMountAppStorageDirs, bindMountSystemOverrides, startSeq, zygoteArgs);
+                    bindMountAppStorageDirs, bindMountSystemOverrides, startSeq, zygoteArgs, flatExtraArgs);
     }
 
     /** @hide */
@@ -821,7 +822,8 @@ public class Process {
                                                   @Nullable long[] enabledCompatChanges,
                                                   boolean useDeliQueue,
                                                   long startSeq,
-                                                  @Nullable String[] zygoteArgs) {
+                                                  @Nullable String[] zygoteArgs,
+                                                  @Nullable String flatExtraArgs) {
         // Webview zygote can't access app private data files, so doesn't need to know its data
         // info.
         return WebViewZygote.getProcess()
@@ -851,7 +853,8 @@ public class Process {
                         /* bindMountAppStorageDirs */ false, /* bindMountSyspropOverrides */
                         false,
                         startSeq,
-                        zygoteArgs);
+                        zygoteArgs,
+                        flatExtraArgs);
     }
 
     /**

@@ -94,7 +94,8 @@ interface IZygoteProcess {
                                      boolean bindMountAppStorageDirs,
                                      boolean bindOverrideSysprops,
                                      long startSeq,
-                                     @Nullable String[] zygoteArgs);
+                                     @Nullable String[] zygoteArgs,
+                                     @Nullable String flatExtraArgs);
 
     /**
      * Starts a new zygote process as a child of this zygote. This is used to create
@@ -130,7 +131,8 @@ interface IZygoteProcess {
                                         String instructionSet,
                                         int uidRangeStart,
                                         int uidRangeEnd,
-                                        ApplicationInfo appInfo);
+                                        ApplicationInfo appInfo,
+                                        @Nullable String flatExtraArgs);
 
     /**
      * Return the socket address for the primary zygote.

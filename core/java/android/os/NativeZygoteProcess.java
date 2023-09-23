@@ -118,7 +118,12 @@ public class NativeZygoteProcess implements IZygoteProcess {
                                                   boolean bindMountAppStorageDirs,
                                                   boolean bindOverrideSysprops,
                                                   long startSeq,
-                                                  @Nullable String[] zygoteArgs) {
+                                                  @Nullable String[] zygoteArgs,
+                                                  @Nullable String flatExtraArgs) {
+        if (flatExtraArgs != null) {
+            throw new IllegalStateException("flatExtraArgs passed to NativeZygoteProcess: " + flatExtraArgs);
+        }
+
         int pid;
         try {
             connectToZygote();
@@ -148,7 +153,11 @@ public class NativeZygoteProcess implements IZygoteProcess {
                                                String instructionSet,
                                                int uidRangeStart,
                                                int uidRangeEnd,
-                                               ApplicationInfo appInfo) {
+                                               ApplicationInfo appInfo,
+                                               @Nullable String flatExtraArgs) {
+        if (flatExtraArgs != null) {
+            throw new IllegalStateException("flatExtraArgs passed to NativeZygoteProcess: " + flatExtraArgs);
+        }
         // Create an unguessable address in the global abstract namespace.
         String serverAddress = processClass + "/" + UUID.randomUUID().toString();
         // The address of abstract socket should be prefixed with '@'.  LocalSocket.connect()
