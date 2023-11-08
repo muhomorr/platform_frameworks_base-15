@@ -2259,6 +2259,7 @@ public class ActivityManagerService extends IActivityManager.Stub
                     mService.mCrashRecoveryHelper.registerConnectivityModuleHealthListener();
                 }
                 mService.scheduleHomeTimeout();
+                com.android.server.ext.SystemJournalNotif.onSystemServerInited();
             }
         }
 
