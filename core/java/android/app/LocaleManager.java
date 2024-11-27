@@ -149,7 +149,10 @@ public class LocaleManager {
     @NonNull
     public LocaleList getApplicationLocales(@NonNull String appPackageName) {
         if (GmsCompat.isPlayStore()) {
-            return PlayStoreHooks.getApplicationLocales();
+            LocaleList override = PlayStoreHooks.overrideGetApplicationLocales(appPackageName);
+            if (override != null) {
+                return override;
+            }
         }
 
         try {
