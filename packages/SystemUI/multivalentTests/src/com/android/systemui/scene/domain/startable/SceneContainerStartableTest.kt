@@ -174,7 +174,7 @@ class SceneContainerStartableTest : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
-        whenever(kosmos.keyguardUpdateMonitor.isUnlockingWithBiometricAllowed(anyBoolean()))
+        whenever(kosmos.keyguardUpdateMonitor.isUnlockingWithBiometricAllowedSafe(anyBoolean()))
             .thenReturn(true)
         runBlocking { kosmos.displayRepository.addDisplay(Display.DEFAULT_DISPLAY) }
         underTest = kosmos.sceneContainerStartable

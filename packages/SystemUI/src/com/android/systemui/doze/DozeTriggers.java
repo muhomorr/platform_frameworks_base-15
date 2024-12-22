@@ -383,7 +383,7 @@ public class DozeTriggers implements DozeMachine.Part {
     private boolean shouldRequestUdfpsLongPressPulseImmediately() {
         final boolean flagEnabled = udfpsScreenOffUnlockFlicker();
         final boolean fpLockout = mKeyguardUpdateMonitor.isFingerprintLockedOut();
-        final boolean fpAllowed = mKeyguardUpdateMonitor.isUnlockingWithFingerprintAllowed();
+        final boolean fpAllowed = mKeyguardUpdateMonitor.isUnlockingWithFingerprintAllowedSafe();
         final boolean collecting = mDozeHost.isCollectingUsUdfpsScreenOffPulseEvents();
         final boolean screenOffUdfpsEnabled = mConfig.screenOffUdfpsEnabled(mContext.getUserId());
         final boolean immediate = !flagEnabled || fpLockout || !fpAllowed || !collecting;

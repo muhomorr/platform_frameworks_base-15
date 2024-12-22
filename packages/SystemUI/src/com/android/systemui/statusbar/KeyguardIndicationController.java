@@ -1653,7 +1653,7 @@ public class KeyguardIndicationController {
         // pass true for isStrongBiometric to isUnlockingWithBiometricAllowed() to bypass the
         // check of whether non-strong biometric is allowed since strong biometrics can still be
         // used.
-        return !mKeyguardUpdateMonitor.isUnlockingWithBiometricAllowed(
+        return !mKeyguardUpdateMonitor.isUnlockingWithBiometricAllowedSafe(
                 true /* isStrongBiometric */);
     }
 
@@ -1770,7 +1770,7 @@ public class KeyguardIndicationController {
 
     private boolean canUnlockWithFingerprint() {
         return mKeyguardUpdateMonitor.isUnlockWithFingerprintPossible(
-                getCurrentUser()) && mKeyguardUpdateMonitor.isUnlockingWithFingerprintAllowed();
+                getCurrentUser()) && mKeyguardUpdateMonitor.isUnlockingWithFingerprintAllowedSafe();
     }
 
     private void showErrorMessageNowOrLater(String errString, @Nullable String followUpMsg,
