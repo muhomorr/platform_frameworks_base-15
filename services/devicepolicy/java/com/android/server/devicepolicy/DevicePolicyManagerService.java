@@ -5856,7 +5856,7 @@ public class DevicePolicyManagerService extends IDevicePolicyManager.Stub {
             return true;
         }
         return mInjector.binderWithCleanCallingIdentity(() ->
-                mLockPatternUtils.checkUserSupportsBiometricSecondFactor(userHandle));
+                mLockPatternUtils.checkUserSupportsBiometricSecondFactor(userHandle, false));
     }
 
     @Override
