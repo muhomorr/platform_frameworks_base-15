@@ -1262,7 +1262,7 @@ public class LockSettingsService extends ILockSettings.Stub {
         if (lockDomain == Primary) {
             return true;
         }
-        return mLockPatternUtils.checkUserSupportsBiometricSecondFactor(userId);
+        return mLockPatternUtils.checkUserSupportsBiometricSecondFactor(userId, false);
     }
 
     private final void checkWritePermission() {
