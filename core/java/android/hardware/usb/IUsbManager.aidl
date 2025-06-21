@@ -218,6 +218,4 @@ interface IUsbManager
             "@android.annotation.RequiresPermission(android.Manifest.permission.MANAGE_USB)")
     void unregisterForDisplayPortEvents(IDisplayPortAltModeInfoListener listener);
 
-    @EnforcePermission("MANAGE_USB")
-    void setSecurityStateForAllPorts(int state, in android.os.ResultReceiver callback);
 }
