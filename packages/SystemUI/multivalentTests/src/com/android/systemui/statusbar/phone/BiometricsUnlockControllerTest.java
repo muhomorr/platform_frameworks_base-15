@@ -202,7 +202,8 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
         mBiometricUnlockController.onBiometricAuthenticated(UserHandle.USER_CURRENT,
                 BiometricSourceType.FINGERPRINT, true, Enabled);
 
-        verify(mStatusBarKeyguardViewManager).showPrimaryBouncer(anyBoolean());
+        verify(mStatusBarKeyguardViewManager).showPrimaryBouncer(anyBoolean(),
+                eq("BiometricUnlockController#MODE_SHOW_BOUNCER"));
         verify(mStatusBarKeyguardViewManager, never()).notifyKeyguardAuthenticated(anyBoolean());
         assertThat(mBiometricUnlockController.getMode())
                 .isEqualTo(BiometricUnlockController.MODE_SHOW_BOUNCER);
@@ -227,7 +228,8 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
         mBiometricUnlockController.onBiometricAuthenticated(UserHandle.USER_CURRENT,
                 BiometricSourceType.FINGERPRINT, true, Enabled);
 
-        verify(mStatusBarKeyguardViewManager).showPrimaryBouncer(anyBoolean());
+        verify(mStatusBarKeyguardViewManager).showPrimaryBouncer(anyBoolean(),
+                eq("BiometricUnlockController#MODE_SHOW_BOUNCER"));
         verify(mStatusBarKeyguardViewManager, never()).notifyKeyguardAuthenticated(anyBoolean());
         assertThat(mBiometricUnlockController.getMode())
                 .isEqualTo(BiometricUnlockController.MODE_SHOW_BOUNCER);
@@ -394,7 +396,7 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
     public void onBiometricAuthenticated_whenFaceAndDreaming_dontDismissKeyguard() {
         when(mUpdateMonitor.isDeviceInteractive()).thenReturn(true);
         when(mUpdateMonitor.isDreaming()).thenReturn(true);
-        when(mUpdateMonitor.isUnlockingWithBiometricAllowed(anyBoolean())).thenReturn(true);
+        when(mUpdateMonitor.isUnlockingWithBiometricAllowedSafe(anyBoolean())).thenReturn(true);
         // the value of isStrongBiometric doesn't matter here since we only care about the returned
         // value of isUnlockingWithBiometricAllowed()
         mBiometricUnlockController.onBiometricAuthenticated(UserHandle.USER_CURRENT,
