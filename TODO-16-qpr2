@@ -1,0 +1,8 @@
+Known issues:
+multiuser limits aren't adjusted to the new upstream infrastructure
+
+Skipped:
+f22c0390cce94... # add second factor UI
+aeccd5a53ccac... # append "Safe" to risky upstream method names
+6a7d706704b7c... # add second factor to fingerprint unlock
+
