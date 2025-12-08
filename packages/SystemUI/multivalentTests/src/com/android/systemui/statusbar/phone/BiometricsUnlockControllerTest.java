@@ -54,6 +54,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.util.LatencyTracker;
 import com.android.keyguard.KeyguardUpdateMonitor;
+import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.keyguard.logging.BiometricUnlockLogger;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.biometrics.AuthController;
@@ -160,7 +161,7 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
         when(mUpdateMonitor.isDeviceInteractive()).thenReturn(true);
         when(mKeyguardStateController.isFaceEnrolledAndEnabled()).thenReturn(true);
         when(mKeyguardStateController.isUnlocked()).thenReturn(false);
-        when(mKeyguardBypassController.onBiometricAuthenticated(any(), anyBoolean()))
+        when(mKeyguardBypassController.onBiometricAuthenticated(any(), anyBoolean(), any()))
                 .thenReturn(true);
         when(mAuthController.isUdfpsFingerDown()).thenReturn(false);
         when(mVibratorHelper.hasVibrator()).thenReturn(true);
@@ -356,7 +357,7 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
     public void onBiometricAuthenticated_whenFaceAndDreaming_dontDismissKeyguard() {
         when(mUpdateMonitor.isDeviceInteractive()).thenReturn(true);
         when(mUpdateMonitor.isDreaming()).thenReturn(true);
-        when(mUpdateMonitor.isUnlockingWithBiometricAllowed(anyBoolean())).thenReturn(true);
+        when(mUpdateMonitor.isUnlockingWithBiometricAllowedSafe(anyBoolean())).thenReturn(true);
         // the value of isStrongBiometric doesn't matter here since we only care about the returned
         // value of isUnlockingWithBiometricAllowed()
         mBiometricUnlockController.onBiometricAuthenticated(UserHandle.USER_CURRENT,
@@ -453,7 +454,7 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
 
     @Test
     public void onBiometricAuthenticated_whenFaceOnTransitionToAlternateBouncer_dismissBouncer() {
-        when(mUpdateMonitor.isUnlockingWithBiometricAllowed(anyBoolean())).thenReturn(true);
+        when(mUpdateMonitor.isUnlockingWithBiometricAllowedSafe(anyBoolean())).thenReturn(true);
         when(mStatusBarKeyguardViewManager.primaryBouncerIsOrWillBeShowing()).thenReturn(false);
         when(mKeyguardTransitionInteractor.getStartedState())
                 .thenReturn(KeyguardState.ALTERNATE_BOUNCER);
@@ -474,7 +475,7 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
         reset(mKeyguardBypassController);
         when(mUpdateMonitor.isUnlockingWithBiometricAllowedSafe(anyBoolean())).thenReturn(true);
         when(mKeyguardBypassController.getBypassEnabled()).thenReturn(true);
-        when(mKeyguardBypassController.onBiometricAuthenticated(any(), anyBoolean()))
+        when(mKeyguardBypassController.onBiometricAuthenticated(any(), anyBoolean(), any()))
                 .thenReturn(true);
         when(mStatusBarKeyguardViewManager.primaryBouncerIsOrWillBeShowing()).thenReturn(true);
         // the value of isStrongBiometric doesn't matter here since we only care about the returned
@@ -524,7 +525,7 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
     public void onBiometricAuthenticated_whenFaceAndPulsing_alwaysDismissKeyguard() {
         reset(mUpdateMonitor);
         reset(mStatusBarKeyguardViewManager);
-        when(mUpdateMonitor.isUnlockingWithBiometricAllowed(anyBoolean())).thenReturn(true);
+        when(mUpdateMonitor.isUnlockingWithBiometricAllowedSafe(anyBoolean())).thenReturn(true);
         when(mDozeScrimController.isPulsing()).thenReturn(true);
         // the value of isStrongBiometric doesn't matter here since we only care about the returned
         // value of isUnlockingWithBiometricAllowed()
@@ -686,7 +687,7 @@ public class BiometricsUnlockControllerTest extends SysuiTestCase {
                 .thenReturn(PowerManager.WAKE_REASON_POWER_BUTTON);
         givenDreamingLocked();
         when(mPowerManager.isInteractive()).thenReturn(true);
-        mBiometricUnlockController.startWakeAndUnlock(BiometricSourceType.FINGERPRINT, true);
+        mBiometricUnlockController.startWakeAndUnlock(BiometricSourceType.FINGERPRINT, true, KeyguardUpdateMonitorCallback.SecondFactorStatus.Disabled);
         verify(mKeyguardViewMediator).onWakeAndUnlocking(true);
         // Ensure that the power hasn't been told to wake up yet.
         verify(mPowerManager, never()).wakeUp(anyLong(), anyInt(), anyString());
