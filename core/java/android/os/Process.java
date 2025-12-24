@@ -1849,6 +1849,12 @@ public class Process {
 
     }
 
+    /** @hide */
+    @SystemApi
+    public static boolean isMemoryTaggingSupported() {
+        return com.android.internal.os.Zygote.nativeSupportsMemoryTagging();
+    }
+
     /**
      * Wait for the death of the given process.
      *
