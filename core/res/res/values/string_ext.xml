@@ -52,4 +52,10 @@
     <string name="usb_port_security_error_title">USB-C port security feature has malfunctioned</string>
     <java-symbol type="string" name="usb_port_security_error_title" />
 
+    <string name="view_logs">View logs</string>
+    <java-symbol type="string" name="view_logs" />
+
+    <java-symbol type="string" name="kg_pin_instructions" />
+    <java-symbol type="string" name="kg_password_instructions" />
+    <java-symbol type="string" name="kg_login_submit_button" />
 </resources>

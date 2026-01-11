@@ -321,6 +321,12 @@ class LegacyGlobalActions implements DialogInterface.OnDismissListener, DialogIn
             mItems.add(getEmergencyAction());
         }
 
+        boolean isSafeMode = android.os.SystemProperties.getInt(
+                com.android.server.power.ShutdownThread.RO_SAFEMODE_PROPERTY, 0) == 1;
+        if (isSafeMode) {
+            mItems.add(new ViewLogsAction(mContext));
+        }
+
         mAdapter = new ActionsAdapter(mContext, mItems,
                 () -> mDeviceProvisioned, () -> mKeyguardShowing);
 
