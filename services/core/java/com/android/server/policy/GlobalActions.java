@@ -64,11 +64,15 @@ class GlobalActions implements GlobalActionsProvider.GlobalActionsListener {
         mKeyguardShowing = keyguardShowing;
         mDeviceProvisioned = deviceProvisioned;
         mShowing = true;
-        if (mGlobalActionsAvailable) {
+        boolean isSafeMode = android.os.SystemProperties.getInt(
+                com.android.server.power.ShutdownThread.RO_SAFEMODE_PROPERTY, 0) == 1;
+        if (mGlobalActionsAvailable
+                // legacy UI is independent of SystemUI, which might be in a broken state
+                && !isSafeMode) {
             mHandler.postDelayed(mShowTimeout, 5000);
             mGlobalActionsProvider.showGlobalActions();
         } else {
-            // SysUI isn't alive, show legacy menu.
+            // SysUI isn't alive or Safe mode is active, show legacy menu.
             ensureLegacyCreated();
             mLegacyGlobalActions.showDialog(mKeyguardShowing, mDeviceProvisioned);
         }
