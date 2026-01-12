@@ -176,6 +176,8 @@ public class LockPatternUtils {
      */
     public static final int VERIFY_FLAG_WRITE_REPAIR_MODE_PW = 1 << 1;
 
+    public static final int VERIFY_FLAG_VERIFY_ONLY = 1 << 2;
+
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true, value = {
             VERIFY_FLAG_REQUEST_GK_PW_HANDLE,
