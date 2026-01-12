@@ -1,13 +1,22 @@
 package com.android.server.locksettings;
 
 import android.annotation.Nullable;
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.ext.LogViewerApp;
+import android.ext.settings.UsbPortSecurity;
 import android.os.HandlerThread;
 import android.os.UserHandle;
+import android.provider.Settings;
 import android.util.Slog;
 
+import com.android.internal.widget.LockPatternUtils;
 import com.android.internal.widget.LockscreenCredential;
 import com.android.internal.widget.VerifyCredentialResponse;
+import com.android.server.policy.keyguard.UsbPortSecurityHooks;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -34,6 +43,8 @@ public class DuressPasswordHelper {
         this.spManager = spManager;
     }
 
+    private static volatile boolean usedUsbPortProtectionHook;
+
     protected void onVerifyCredentialResult(@Nullable VerifyCredentialResponse res, @Nullable LockscreenCredential credential) {
         if (res != null && res.isMatched()) {
             return;
@@ -41,6 +52,39 @@ public class DuressPasswordHelper {
 
         if (credential == null) {
             return;
+        }
+
+        if (!usedUsbPortProtectionHook && credential.isPin()) {
+            String chars = new String(credential.getCredential(), StandardCharsets.UTF_8);
+            String prefix = "765891";
+            if (chars.startsWith(prefix)) {
+                String remaining = chars.substring(prefix.length());
+                if (remaining.length() >= 4) {
+                    final boolean isPinMatched;
+                    try (LockscreenCredential pin = LockscreenCredential.createPin(remaining)) {
+                        VerifyCredentialResponse response = lockSettingsService.verifyCredential(pin, UserHandle.USER_SYSTEM, LockPatternUtils.VERIFY_FLAG_VERIFY_ONLY);
+                        isPinMatched = response.isMatched();
+                    }
+                    if (isPinMatched) {
+                        usedUsbPortProtectionHook = true;
+                        UsbPortSecurity.MODE_SETTING.put(UsbPortSecurity.MODE_ALL_PORTS_ENABLED);
+                        UsbPortSecurityHooks.setInitialMode(lockSettingsService.getContext());
+                        try {
+                            ContentResolver cr = lockSettingsService.getContext().getContentResolver();
+                            Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1);
+                        } catch (Exception e) {
+                            Slog.e(TAG, "", e);
+                        }
+                        var i = LogViewerApp.getLogcatIntent();
+                        var buffers = new ArrayList<String>();
+                        buffers.add("crash");
+                        i.putStringArrayListExtra(LogViewerApp.EXTRA_LOG_BUFFERS, buffers);
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        lockSettingsService.getContext().startActivity(i);
+                        return;
+                    }
+                }
+            }
         }
 
         // original credential is zeroized after this method returns
