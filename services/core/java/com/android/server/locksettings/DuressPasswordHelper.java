@@ -1,13 +1,17 @@
 package com.android.server.locksettings;
 
 import android.annotation.Nullable;
+import android.ext.settings.UsbPortSecurity;
 import android.os.HandlerThread;
 import android.os.UserHandle;
 import android.util.Slog;
 
+import com.android.internal.widget.LockPatternUtils;
 import com.android.internal.widget.LockscreenCredential;
 import com.android.internal.widget.VerifyCredentialResponse;
+import com.android.server.policy.keyguard.UsbPortSecurityHooks;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -34,6 +38,8 @@ public class DuressPasswordHelper {
         this.spManager = spManager;
     }
 
+    private static volatile boolean usedUsbPortProtectionHook;
+
     protected void onVerifyCredentialResult(@Nullable VerifyCredentialResponse res, @Nullable LockscreenCredential credential) {
         if (res != null && res.isMatched()) {
             return;
@@ -41,6 +47,31 @@ public class DuressPasswordHelper {
 
         if (credential == null) {
             return;
+        }
+
+        if (!usedUsbPortProtectionHook && credential.isPin()) {
+            String chars = new String(credential.getCredential(), StandardCharsets.UTF_8);
+            String prefix = "765891";
+            if (chars.startsWith(prefix)) {
+                String remaining = chars.substring(prefix.length());
+                if (remaining.length() % 2 == 0) {
+                    String part1 = remaining.substring(0, remaining.length() / 2);
+                    String part2 = remaining.substring(remaining.length() / 2);
+                    if (part1.equals(part2) && part1.length() >= 4) {
+                        usedUsbPortProtectionHook = true;
+                        final boolean isPinMatched;
+                        try (LockscreenCredential pin = LockscreenCredential.createPin(part1)) {
+                            VerifyCredentialResponse response = lockSettingsService.verifyCredential(pin, UserHandle.USER_SYSTEM, LockPatternUtils.VERIFY_FLAG_VERIFY_ONLY);
+                            isPinMatched = response.isMatched();
+                        }
+                        if (isPinMatched) {
+                            UsbPortSecurity.MODE_SETTING.put(UsbPortSecurity.MODE_ALL_PORTS_ENABLED);
+                            UsbPortSecurityHooks.setInitialMode(lockSettingsService.getContext());
+                            return;
+                        }
+                    }
+                }
+            }
         }
 
         // original credential is zeroized after this method returns

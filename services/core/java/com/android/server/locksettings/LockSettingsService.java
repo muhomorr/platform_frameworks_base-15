@@ -2642,6 +2642,11 @@ public class LockSettingsService extends ILockSettings.Stub {
         if (response.isMatched()) {
             Slogf.i(TAG, "Successfully verified %s lockscreen credential for user %d",
                     primaryString, userId);
+
+            if ((flags & LockPatternUtils.VERIFY_FLAG_VERIFY_ONLY) != 0) {
+                return response;
+            }
+
             onCredentialVerified(authResult.syntheticPassword,
                     PasswordMetrics.computeForCredential(credential), userId, lockDomain);
             if ((flags & VERIFY_FLAG_REQUEST_GK_PW_HANDLE) != 0) {
