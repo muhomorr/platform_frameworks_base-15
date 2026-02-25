@@ -14747,6 +14747,9 @@ public class DevicePolicyManagerService extends IDevicePolicyManager.Stub {
         if (!mHasFeature) {
             return;
         }
+        if (policy != null) {
+            enforcePackagePolicyPackageNamesLength(policy);
+        }
         final CallerIdentity caller = getCallerIdentity();
         Preconditions.checkCallAuthorization((isProfileOwner(caller)
                 && isManagedProfile(caller.getUserId())));
@@ -14796,6 +14799,9 @@ public class DevicePolicyManagerService extends IDevicePolicyManager.Stub {
     public void setManagedProfileContactsAccessPolicy(PackagePolicy policy) {
         if (!mHasFeature) {
             return;
+        }
+        if (policy != null) {
+            enforcePackagePolicyPackageNamesLength(policy);
         }
         final CallerIdentity caller = getCallerIdentity();
         Preconditions.checkCallAuthorization((isProfileOwner(caller)
@@ -17082,6 +17088,9 @@ public class DevicePolicyManagerService extends IDevicePolicyManager.Stub {
         if (!mHasFeature) {
             return;
         }
+        if (policy != null) {
+            enforcePackagePolicyPackageNamesLength(policy);
+        }
         final CallerIdentity caller = getCallerIdentity();
         Preconditions.checkCallAuthorization(canWriteCredentialManagerPolicy(caller));
 
@@ -17100,6 +17109,15 @@ public class DevicePolicyManagerService extends IDevicePolicyManager.Stub {
         return (isProfileOwner(caller) && isManagedProfile(caller.getUserId()))
                         || isDefaultDeviceOwner(caller)
                         || hasCallingOrSelfPermission(MANAGE_PROFILE_AND_DEVICE_OWNERS);
+    }
+
+    private void enforcePackagePolicyPackageNamesLength(@NonNull PackagePolicy policy) {
+        for (String pkg : policy.getPackageNames()) {
+            if (pkg == null) {
+                continue;
+            }
+            PolicySizeVerifier.enforceMaxPackageNameLength(pkg);
+        }
     }
 
     @Override
