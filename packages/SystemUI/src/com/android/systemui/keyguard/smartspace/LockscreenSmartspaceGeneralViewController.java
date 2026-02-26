@@ -10,8 +10,6 @@ import com.android.systemui.util.ViewController;
 
 import java.util.List;
 
-// TODO: Burn in.
-
 /**
  * Controller for LockscreenSmartspaceGeneralView. This is a reimplementation of the legacy
  * KeyguardSliceViewController.
