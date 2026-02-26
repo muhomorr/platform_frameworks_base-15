@@ -9,6 +9,7 @@ import android.app.smartspace.SmartspaceSessionId;
 import android.app.smartspace.SmartspaceTarget;
 import android.app.smartspace.SmartspaceTargetEvent;
 import android.app.smartspace.uitemplatedata.BaseTemplateData;
+import android.app.smartspace.uitemplatedata.BaseTemplateData.SubItemInfo;
 import android.app.smartspace.uitemplatedata.CombinedCardsTemplateData;
 import android.app.smartspace.uitemplatedata.Icon;
 import android.app.smartspace.uitemplatedata.Text;
@@ -207,7 +208,7 @@ public class SystemUISmartspaceService extends SmartspaceService implements
         if (metadata != null) {
             title = metadata.getText(MediaMetadata.METADATA_KEY_TITLE);
             if (TextUtils.isEmpty(title)) {
-                title = getResources().getString(R.string.music_controls_no_title);
+                title = getString(R.string.music_controls_no_title);
             }
         }
         CharSequence artist = metadata == null ? null : metadata.getText(
@@ -228,7 +229,7 @@ public class SystemUISmartspaceService extends SmartspaceService implements
     public void onDozingChanged(boolean isDozing) {
         boolean shouldDisplayMediaPrevious = shouldDisplayMedia();
         mDozing = isDozing;
-        if(shouldDisplayMedia() != shouldDisplayMediaPrevious) {
+        if (shouldDisplayMedia() != shouldDisplayMediaPrevious) {
             updateLockscreenClients();
         }
     }
@@ -316,17 +317,11 @@ public class SystemUISmartspaceService extends SmartspaceService implements
             return null;
         }
 
-        Text.Builder textBuilder = new Text.Builder(mFormattedDate);
-
-        BaseTemplateData.SubItemInfo.Builder primaryItemBuilder =
-                new BaseTemplateData.SubItemInfo.Builder();
-        primaryItemBuilder.setText(textBuilder.build());
-
-        BaseTemplateData.Builder templateBuilder = new BaseTemplateData.Builder(
-                UI_TEMPLATE_DEFAULT);
-        templateBuilder.setPrimaryItem(primaryItemBuilder.build());
-
-        return templateBuilder.build();
+        return new BaseTemplateData.Builder(UI_TEMPLATE_DEFAULT)
+                .setPrimaryItem(new SubItemInfo.Builder()
+                        .setText(new Text.Builder(mFormattedDate).build())
+                        .build())
+                .build();
     }
 
     private BaseTemplateData createAlarmTemplate() {
@@ -334,26 +329,18 @@ public class SystemUISmartspaceService extends SmartspaceService implements
             return null;
         }
 
-        Text.Builder textBuilder = new Text.Builder(mFormattedNextAlarmDate);
-
-        android.graphics.drawable.Icon alarmIcon =
-                android.graphics.drawable.Icon.createWithResource(this,
+        var alarmIcon = android.graphics.drawable.Icon.createWithResource(this,
                         R.drawable.ic_access_alarms_big);
-        Icon.Builder iconBuilder = new Icon.Builder(alarmIcon);
 
-        BaseTemplateData.SubItemInfo.Builder primaryItemBuilder =
-                new BaseTemplateData.SubItemInfo.Builder();
-        primaryItemBuilder.setText(textBuilder.build());
-        primaryItemBuilder.setIcon(iconBuilder.build());
-
-        BaseTemplateData.Builder templateBuilder = new BaseTemplateData.Builder(
-                UI_TEMPLATE_DEFAULT);
-        templateBuilder.setPrimaryItem(primaryItemBuilder.build());
-
-        return templateBuilder.build();
+        return new BaseTemplateData.Builder(UI_TEMPLATE_DEFAULT)
+                .setPrimaryItem(new SubItemInfo.Builder()
+                        .setText(new Text.Builder(mFormattedNextAlarmDate).build())
+                        .setIcon(new Icon.Builder(alarmIcon).build())
+                        .build())
+                .build();
     }
 
-    private boolean shouldDisplayAlarm(AlarmManager.AlarmClockInfo alarm) {
+    private static boolean shouldDisplayAlarm(AlarmManager.AlarmClockInfo alarm) {
         if (alarm == null) {
             return false;
         }
@@ -379,20 +366,13 @@ public class SystemUISmartspaceService extends SmartspaceService implements
             return null;
         }
 
-        android.graphics.drawable.Icon zenModeIcon =
-                android.graphics.drawable.Icon.createWithResource(this,
-                        R.drawable.stat_sys_dnd);
-        Icon.Builder iconBuilder = new Icon.Builder(zenModeIcon);
+        var icon = android.graphics.drawable.Icon.createWithResource(this, R.drawable.stat_sys_dnd);
 
-        BaseTemplateData.SubItemInfo.Builder primaryItemBuilder =
-                new BaseTemplateData.SubItemInfo.Builder();
-        primaryItemBuilder.setIcon(iconBuilder.build());
-
-        BaseTemplateData.Builder templateBuilder = new BaseTemplateData.Builder(
-                UI_TEMPLATE_DEFAULT);
-        templateBuilder.setPrimaryItem(primaryItemBuilder.build());
-
-        return templateBuilder.build();
+        return new BaseTemplateData.Builder(UI_TEMPLATE_DEFAULT)
+                .setPrimaryItem(new SubItemInfo.Builder()
+                        .setIcon(new Icon.Builder(icon).build())
+                        .build())
+                .build();
     }
 
     private boolean isZenModeEnabled() {
@@ -404,32 +384,26 @@ public class SystemUISmartspaceService extends SmartspaceService implements
             return null;
         }
 
-        BaseTemplateData.Builder templateBuilder = new BaseTemplateData.Builder(
-                UI_TEMPLATE_DEFAULT);
+        var templateBuilder = new BaseTemplateData.Builder(UI_TEMPLATE_DEFAULT);
 
-        Text.Builder textBuilder = new Text.Builder(mMediaTitle);
-        BaseTemplateData.SubItemInfo.Builder primaryItemBuilder =
-                new BaseTemplateData.SubItemInfo.Builder();
-        primaryItemBuilder.setText(textBuilder.build());
-        templateBuilder.setPrimaryItem(primaryItemBuilder.build());
+        templateBuilder.setPrimaryItem(new SubItemInfo.Builder()
+                .setText(new Text.Builder(mMediaTitle).build())
+                .build());
 
         if (!TextUtils.isEmpty(mMediaArtist)) {
             android.graphics.drawable.Icon mediaIcon = mNotificationMediaManager == null ?
                     null : mNotificationMediaManager.getMediaIcon();
             if (mediaIcon != null) {
-                BaseTemplateData.SubItemInfo.Builder subtitleItemBuilder =
-                        new BaseTemplateData.SubItemInfo.Builder();
-                Text.Builder subtitleTextBuilder = new Text.Builder(mMediaArtist);
-                subtitleItemBuilder.setText(subtitleTextBuilder.build());
-                Icon.Builder iconBuilder = new Icon.Builder(mediaIcon);
-                subtitleItemBuilder.setIcon(iconBuilder.build());
-                templateBuilder.setSubtitleItem(subtitleItemBuilder.build());
+                templateBuilder.setSubtitleItem(new SubItemInfo.Builder()
+                        .setText(new Text.Builder(mMediaArtist).build())
+                        .setIcon(new Icon.Builder(mediaIcon).build())
+                        .build());
             }
         }
         return templateBuilder.build();
     }
 
-    protected boolean shouldDisplayMedia() {
+    private boolean shouldDisplayMedia() {
         return !TextUtils.isEmpty(mMediaTitle) && mMediaIsVisible && mDozing;
     }
 
