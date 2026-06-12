@@ -370,13 +370,11 @@ public final class Zygote {
         // single-threaded mode which is required for changing the SELinux context
         ZygoteHooks.preFork();
 
-        boolean useFifoUi = isExecSpawning ||
-                (com.android.internal.os.Flags.zygoteEarlyFifoBoost() ?
-                SystemProperties.getInt("sys.use_fifo_ui", 0) == 1 : false);
+        boolean useFifoUi = SystemProperties.getInt("sys.use_fifo_ui", 0) == 1;
         int pid = nativeForkAndSpecialize(extraArgs.makeJniLongArray(),
                 uid, gid, gids, runtimeFlags, rlimits, mountExternal, seInfo, niceName, fdsToClose,
                 fdsToIgnore, startChildZygote, instructionSet, appDataDir, isTopApp,
-                useFifoUi,
+                com.android.internal.os.Flags.zygoteEarlyFifoBoost() ? useFifoUi : false,
                 pkgDataInfoList, allowlistedDataInfoList, bindMountAppDataDirs,
                 bindMountAppStorageDirs, bindMountSyspropOverrides);
         if (pid == 0) {
