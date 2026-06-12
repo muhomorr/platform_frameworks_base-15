@@ -1054,14 +1054,50 @@ public class ZygoteProcess {
         ZygoteState zygoteState = mZygoteStates[typeIdx];
         if (zygoteState == null || zygoteState.isClosed()) {
             Log.d(LOG_TAG, "attemptConnectionToZygote " + type, new Throwable());
+            if (type == ZygoteType.Compat) {
+                if (!"running".equals(SystemProperties.get("init.svc.zygote_compat", null))) {
+                    long start = SystemClock.elapsedRealtime();
+                    startCompatZygote();
+                    Log.d(LOG_TAG, "waited " + (SystemClock.elapsedRealtime() - start) + " ms for compat zygote");
+                }
+            }
             zygoteState =
                     ZygoteState.connect(mZygoteSocketAddresses[typeIdx], mUsapPoolSocketAddresses[typeIdx]);
             mZygoteStates[typeIdx] = zygoteState;
 
             maybeSetApiDenylistExemptions(zygoteState, false);
             maybeSetHiddenApiAccessLogSampleRate(zygoteState);
+            if (type == ZygoteType.Compat) {
+                // compat zygote is started on-demand, it might not be running when bootCompleted()
+                // is dispatched to other zygotes
+                bootCompleted(Build.SUPPORTED_64_BIT_ABIS[0], ZygoteSelectionMode.PreferCompatZygote);
+            }
         }
         return zygoteState;
+    }
+
+    private void startCompatZygote() throws IOException {
+        SystemProperties.set("sys.start_compat_zygote", "1");
+        boolean started = false;
+        LocalSocketAddress zygoteSocketAddress = mZygoteSocketAddresses[ZygoteType.Compat.ordinal()];
+
+        try (var zygoteSocket = new LocalSocket()) {
+            for (int i = 0; i < 2000; ++i) {
+                try {
+                    zygoteSocket.connect(zygoteSocketAddress);
+                    started = true;
+                    break;
+                } catch (IOException e) {
+                    if ((i % 20) == 0) {
+                        Log.d(LOG_TAG, "waiting for compat zygote to start");
+                    }
+                    SystemClock.sleep(10);
+                }
+            }
+        }
+        if (!started) {
+            throw new RuntimeException("timed out while waiting for compat zygote");
+        }
     }
 
     /**
@@ -1091,6 +1127,13 @@ public class ZygoteProcess {
         try {
             ZygoteState primaryZygoteState = attemptConnectionToPrimaryZygote();
             if (primaryZygoteState.matches(abi)) {
+                if (zsm == ZygoteSelectionMode.PreferCompatZygote) {
+                    ZygoteState compatZygoteState = attemptConnectionToZygote(ZygoteType.Compat);
+                    if (!compatZygoteState.matches(abi)) {
+                        throw new IllegalStateException("primary and compat zygotes must match same ABIs");
+                    }
+                    return compatZygoteState;
+                }
                 return primaryZygoteState;
             }
 
