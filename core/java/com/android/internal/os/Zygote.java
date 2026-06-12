@@ -209,15 +209,6 @@ public final class Zygote {
     /** Load 4KB ELF files on 16KB device using appcompat mode */
     public static final int ENABLE_PAGE_SIZE_APP_COMPAT = 1 << 26;
 
-    public static final int FORCIBLY_ENABLE_MEMORY_TAGGING = 1 << 28;
-    public static final int DISABLE_HARDENED_MALLOC = 1 << 29;
-    public static final int ENABLE_COMPAT_VA_39_BIT = 1 << 30;
-
-    // make sure to update isSimpleForkCommand() in core/jni/com_android_internal_os_ZygoteCommandBuffer.cpp
-    // when adding new flags that depend on exec spawning
-    public static final int RUNTIME_FLAGS_DEPENDENT_ON_EXEC_SPAWNING = DISABLE_HARDENED_MALLOC | ENABLE_COMPAT_VA_39_BIT;
-    public static final int CUSTOM_RUNTIME_FLAGS = DISABLE_HARDENED_MALLOC | ENABLE_COMPAT_VA_39_BIT | FORCIBLY_ENABLE_MEMORY_TAGGING;
-
     /** No external storage should be mounted. */
     public static final int MOUNT_EXTERNAL_NONE = IVold.REMOUNT_MODE_NONE;
     /** Default external storage should be mounted. */
@@ -1188,7 +1179,6 @@ public final class Zygote {
     @SuppressWarnings("unused")
     private static void callPostForkChildHooks(int runtimeFlags, boolean isSystemServer,
             boolean isZygote, String instructionSet) {
-        runtimeFlags &= ~CUSTOM_RUNTIME_FLAGS; // a warning is printed when an unknown flag is passed
         android.os.Binder.onZygotePostForkChild();
         android.os.BinderProxy.onZygotePostForkChild();
         ZygoteHooks.postForkChild(runtimeFlags, isSystemServer, isZygote, instructionSet);
@@ -1401,8 +1391,6 @@ public final class Zygote {
                 level = MEMORY_TAG_LEVEL_ASYNC;
 
                 if (!si.isImmutable()) {
-                    level |= FORCIBLY_ENABLE_MEMORY_TAGGING;
-                    // This flag prevents the app from downgrading the heap memory tagging level and
                     // from intercepting MTE SIGSEGV signal (it's used for crashing the process
                     // after tag check failure).
                     //
@@ -1555,13 +1543,4 @@ public final class Zygote {
         }
         return runtimeFlags;
     }
-
-    /**
-     * Used on GrapheneOS to set up runtime flags
-     *
-     * @param runtimeFlags flags to be passed to the native method
-     *
-     * @hide
-     */
-    public static native void nativeHandleRuntimeFlags(int runtimeFlags);
 }
