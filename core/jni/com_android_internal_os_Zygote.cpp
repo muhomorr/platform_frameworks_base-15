@@ -87,8 +87,6 @@
 
 #include "nativebridge/native_bridge.h"
 
-#include "ExecStrings.h"
-
 #if defined(__BIONIC__)
 #include <android/dlext_private.h>
 extern "C" void android_reset_stack_guards();
@@ -3058,18 +3056,6 @@ static void nativeHandleRuntimeFlagsWrapper(JNIEnv* env, jclass, jint runtime_fl
     HandleRuntimeFlags(env, runtime_flags, nullptr, nullptr);
 }
 
-static jint execveatWrapper(JNIEnv* env, jclass, jint dirFd, jstring javaFilename, jobjectArray javaArgv, jint flags) {
-    ScopedUtfChars path(env, javaFilename);
-    if (path.c_str() == NULL) {
-        return EINVAL;
-    }
-
-    ExecStrings argv(env, javaArgv);
-    TEMP_FAILURE_RETRY(execveat(dirFd, path.c_str(), argv.get(), environ, flags));
-    // execveat never returns on success
-    return errno;
-}
-
 static const JNINativeMethod gMethods[] = {
         {"nativeForkAndSpecialize",
          "(II[II[[IILjava/lang/String;Ljava/lang/String;[I[IZLjava/lang/String;Ljava/lang/"
@@ -3123,7 +3109,6 @@ static const JNINativeMethod gMethods[] = {
         {"nativeAllowFilesOpenedByPreload", "()V",
          (void*)com_android_internal_os_Zygote_nativeAllowFilesOpenedByPreload},
         {"nativeHandleRuntimeFlags", "(I)V", (void*)nativeHandleRuntimeFlagsWrapper},
-        {"execveatWrapper", "(ILjava/lang/String;[Ljava/lang/String;I)I", (void*)execveatWrapper},
 };
 
 int register_com_android_internal_os_Zygote(JNIEnv* env) {
