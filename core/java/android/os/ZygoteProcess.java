@@ -34,6 +34,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.os.Zygote;
 import com.android.internal.os.ZygoteConfig;
 import com.android.internal.os.ZygoteExtraArgs;
+import com.android.internal.os.ZygoteType;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
@@ -72,6 +73,7 @@ import java.util.UUID;
  * @hide
  */
 public class ZygoteProcess {
+    private static final int NUM_ZYGOTE_TYPES = ZygoteType.values().length;
 
     private static final int ZYGOTE_CONNECT_TIMEOUT_MS = 60000;
 
@@ -87,60 +89,38 @@ public class ZygoteProcess {
     private static final String LOG_TAG = "ZygoteProcess";
 
     /**
-     * The name of the socket used to communicate with the primary zygote.
+     * The name of the sockets used to communicate with the zygotes.
      */
-    private final LocalSocketAddress mZygoteSocketAddress;
+    private final LocalSocketAddress[] mZygoteSocketAddresses = new LocalSocketAddress[NUM_ZYGOTE_TYPES];
 
     /**
-     * The name of the secondary (alternate ABI) zygote socket.
+     * The names of the sockets used to communicate with the zygote's USAP pool.
      */
-    private final LocalSocketAddress mZygoteSecondarySocketAddress;
-
-    /**
-     * The name of the socket used to communicate with the primary USAP pool.
-     */
-    private final LocalSocketAddress mUsapPoolSocketAddress;
-
-    /**
-     * The name of the socket used to communicate with the secondary (alternate ABI) USAP pool.
-     */
-    private final LocalSocketAddress mUsapPoolSecondarySocketAddress;
+    private final LocalSocketAddress[] mUsapPoolSocketAddresses = new LocalSocketAddress[NUM_ZYGOTE_TYPES];
 
     public ZygoteProcess() {
-        mZygoteSocketAddress =
-                new LocalSocketAddress(Zygote.PRIMARY_SOCKET_NAME,
+        for (var type : ZygoteType.values()) {
+            int idx = type.ordinal();
+            mZygoteSocketAddresses[idx] = new LocalSocketAddress(type.getSocketName(),
                                        LocalSocketAddress.Namespace.RESERVED);
-        mZygoteSecondarySocketAddress =
-                new LocalSocketAddress(Zygote.SECONDARY_SOCKET_NAME,
+            mUsapPoolSocketAddresses[idx] = new LocalSocketAddress(type.getUsapPoolSocketName(),
                                        LocalSocketAddress.Namespace.RESERVED);
-
-        mUsapPoolSocketAddress =
-                new LocalSocketAddress(Zygote.USAP_POOL_PRIMARY_SOCKET_NAME,
-                                       LocalSocketAddress.Namespace.RESERVED);
-        mUsapPoolSecondarySocketAddress =
-                new LocalSocketAddress(Zygote.USAP_POOL_SECONDARY_SOCKET_NAME,
-                                       LocalSocketAddress.Namespace.RESERVED);
+        }
 
         // This constructor is used to create the primary and secondary Zygotes, which can support
         // Unspecialized App Process Pools.
         mUsapPoolSupported = true;
     }
 
-    public ZygoteProcess(LocalSocketAddress primarySocketAddress,
-                         LocalSocketAddress secondarySocketAddress) {
-        mZygoteSocketAddress = primarySocketAddress;
-        mZygoteSecondarySocketAddress = secondarySocketAddress;
-
-        mUsapPoolSocketAddress = null;
-        mUsapPoolSecondarySocketAddress = null;
-
-        // This constructor is used to create the primary and secondary Zygotes, which CAN NOT
+    public ZygoteProcess(LocalSocketAddress primarySocketAddress) {
+        mZygoteSocketAddresses[ZygoteType.Primary.ordinal()] = primarySocketAddress;
+        // This constructor is used to create the primary Zygotes which CAN NOT
         // support Unspecialized App Process Pools.
         mUsapPoolSupported = false;
     }
 
     public LocalSocketAddress getPrimarySocketAddress() {
-        return mZygoteSocketAddress;
+        return mZygoteSocketAddresses[ZygoteType.Primary.ordinal()];
     }
 
     /**
@@ -266,14 +246,9 @@ public class ZygoteProcess {
     private int mHiddenApiAccessStatslogSampleRate;
 
     /**
-     * The state of the connection to the primary zygote.
+     * Zygote connection states.
      */
-    private ZygoteState primaryZygoteState;
-
-    /**
-     * The state of the connection to the secondary zygote.
-     */
-    private ZygoteState secondaryZygoteState;
+    private ZygoteState[] mZygoteStates = new ZygoteState[NUM_ZYGOTE_TYPES];
 
     /**
      * If this Zygote supports the creation and maintenance of a USAP pool.
@@ -815,7 +790,7 @@ public class ZygoteProcess {
         synchronized(mLock) {
             // The USAP pool can not be used if the application will not use the systems graphics
             // driver.  If that driver is requested use the Zygote application start path.
-            return zygoteSendArgsAndGetResult(openZygoteSocketIfNeeded(abi),
+            return zygoteSendArgsAndGetResult(openZygoteSocketIfNeeded(abi, zygoteExtArgs.getZygoteSelectionMode()),
                                               zygotePolicyFlags,
                                               argsForZygote);
         }
@@ -860,11 +835,10 @@ public class ZygoteProcess {
      * Closes the connections to the zygote, if they exist.
      */
     public void close() {
-        if (primaryZygoteState != null) {
-            primaryZygoteState.close();
-        }
-        if (secondaryZygoteState != null) {
-            secondaryZygoteState.close();
+        for (ZygoteState state : mZygoteStates) {
+            if (state != null) {
+                state.close();
+            }
         }
     }
 
@@ -873,10 +847,10 @@ public class ZygoteProcess {
      * and retry if the zygote is unresponsive. This method is a no-op if a connection is
      * already open.
      */
-    public void establishZygoteConnectionForAbi(String abi) {
+    public void establishZygoteConnectionForAbi(String abi, ZygoteSelectionMode zsm) {
         try {
             synchronized(mLock) {
-                openZygoteSocketIfNeeded(abi);
+                openZygoteSocketIfNeeded(abi, zsm);
             }
         } catch (ZygoteStartFailedEx ex) {
             throw new RuntimeException("Unable to connect to zygote for abi: " + abi, ex);
@@ -886,10 +860,10 @@ public class ZygoteProcess {
     /**
      * Attempt to retrieve the PID of the zygote serving the given abi.
      */
-    public int getZygotePid(String abi) {
+    public int getZygotePid(String abi, ZygoteSelectionMode zsm) {
         try {
             synchronized (mLock) {
-                ZygoteState state = openZygoteSocketIfNeeded(abi);
+                ZygoteState state = openZygoteSocketIfNeeded(abi, zsm);
 
                 // Each query starts with the argument count (1 in this case)
                 state.mZygoteOutputWriter.write("1");
@@ -918,17 +892,17 @@ public class ZygoteProcess {
     public void bootCompleted() {
         // Notify both the 32-bit and 64-bit zygote.
         if (Build.SUPPORTED_32_BIT_ABIS.length > 0) {
-            bootCompleted(Build.SUPPORTED_32_BIT_ABIS[0]);
+            bootCompleted(Build.SUPPORTED_32_BIT_ABIS[0], ZygoteSelectionMode.Regular);
         }
         if (Build.SUPPORTED_64_BIT_ABIS.length > 0) {
-            bootCompleted(Build.SUPPORTED_64_BIT_ABIS[0]);
+            bootCompleted(Build.SUPPORTED_64_BIT_ABIS[0], ZygoteSelectionMode.Regular);
         }
     }
 
-    private void bootCompleted(String abi) {
+    private void bootCompleted(String abi, ZygoteSelectionMode zsm) {
         try {
             synchronized (mLock) {
-                ZygoteState state = openZygoteSocketIfNeeded(abi);
+                ZygoteState state = openZygoteSocketIfNeeded(abi, zsm);
                 state.mZygoteOutputWriter.write("1\n--boot-completed\n");
                 state.mZygoteOutputWriter.flush();
                 state.mZygoteInputStream.readInt();
@@ -950,9 +924,11 @@ public class ZygoteProcess {
     public boolean setApiDenylistExemptions(List<String> exemptions) {
         synchronized (mLock) {
             mApiDenylistExemptions = exemptions;
-            boolean ok = maybeSetApiDenylistExemptions(primaryZygoteState, true);
-            if (ok) {
-                ok = maybeSetApiDenylistExemptions(secondaryZygoteState, true);
+            boolean ok = true;
+            for (var type : ZygoteType.values()) {
+                if (!maybeSetApiDenylistExemptions(mZygoteStates[type.ordinal()], true)) {
+                    ok = false;
+                }
             }
             return ok;
         }
@@ -968,8 +944,9 @@ public class ZygoteProcess {
     public void setHiddenApiAccessLogSampleRate(int rate) {
         synchronized (mLock) {
             mHiddenApiAccessLogSampleRate = rate;
-            maybeSetHiddenApiAccessLogSampleRate(primaryZygoteState);
-            maybeSetHiddenApiAccessLogSampleRate(secondaryZygoteState);
+            for (var type : ZygoteType.values()) {
+                maybeSetHiddenApiAccessLogSampleRate(mZygoteStates[type.ordinal()]);
+            }
         }
     }
 
@@ -983,8 +960,9 @@ public class ZygoteProcess {
     public void setHiddenApiAccessStatslogSampleRate(int rate) {
         synchronized (mLock) {
             mHiddenApiAccessStatslogSampleRate = rate;
-            maybeSetHiddenApiAccessStatslogSampleRate(primaryZygoteState);
-            maybeSetHiddenApiAccessStatslogSampleRate(secondaryZygoteState);
+            for (var type : ZygoteType.values()) {
+                maybeSetHiddenApiAccessStatslogSampleRate(mZygoteStates[type.ordinal()]);
+            }
         }
     }
 
@@ -1070,33 +1048,36 @@ public class ZygoteProcess {
         }
     }
 
+    @GuardedBy("mLock")
+    private ZygoteState attemptConnectionToZygote(ZygoteType type) throws IOException {
+        int typeIdx = type.ordinal();
+        ZygoteState zygoteState = mZygoteStates[typeIdx];
+        if (zygoteState == null || zygoteState.isClosed()) {
+            Log.d(LOG_TAG, "attemptConnectionToZygote " + type, new Throwable());
+            zygoteState =
+                    ZygoteState.connect(mZygoteSocketAddresses[typeIdx], mUsapPoolSocketAddresses[typeIdx]);
+            mZygoteStates[typeIdx] = zygoteState;
+
+            maybeSetApiDenylistExemptions(zygoteState, false);
+            maybeSetHiddenApiAccessLogSampleRate(zygoteState);
+        }
+        return zygoteState;
+    }
+
     /**
      * Creates a ZygoteState for the primary zygote if it doesn't exist or has been disconnected.
      */
     @GuardedBy("mLock")
-    private void attemptConnectionToPrimaryZygote() throws IOException {
-        if (primaryZygoteState == null || primaryZygoteState.isClosed()) {
-            primaryZygoteState =
-                    ZygoteState.connect(mZygoteSocketAddress, mUsapPoolSocketAddress);
-
-            maybeSetApiDenylistExemptions(primaryZygoteState, false);
-            maybeSetHiddenApiAccessLogSampleRate(primaryZygoteState);
-        }
+    private ZygoteState attemptConnectionToPrimaryZygote() throws IOException {
+        return attemptConnectionToZygote(ZygoteType.Primary);
     }
 
     /**
      * Creates a ZygoteState for the secondary zygote if it doesn't exist or has been disconnected.
      */
     @GuardedBy("mLock")
-    private void attemptConnectionToSecondaryZygote() throws IOException {
-        if (secondaryZygoteState == null || secondaryZygoteState.isClosed()) {
-            secondaryZygoteState =
-                    ZygoteState.connect(mZygoteSecondarySocketAddress,
-                            mUsapPoolSecondarySocketAddress);
-
-            maybeSetApiDenylistExemptions(secondaryZygoteState, false);
-            maybeSetHiddenApiAccessLogSampleRate(secondaryZygoteState);
-        }
+    private ZygoteState attemptConnectionToSecondaryZygote() throws IOException {
+        return attemptConnectionToZygote(ZygoteType.Secondary);
     }
 
     /**
@@ -1106,17 +1087,16 @@ public class ZygoteProcess {
      * appropriate one.  Requires that mLock be held.
      */
     @GuardedBy("mLock")
-    private ZygoteState openZygoteSocketIfNeeded(String abi) throws ZygoteStartFailedEx {
+    private ZygoteState openZygoteSocketIfNeeded(String abi, ZygoteSelectionMode zsm) throws ZygoteStartFailedEx {
         try {
-            attemptConnectionToPrimaryZygote();
-
+            ZygoteState primaryZygoteState = attemptConnectionToPrimaryZygote();
             if (primaryZygoteState.matches(abi)) {
                 return primaryZygoteState;
             }
 
-            if (mZygoteSecondarySocketAddress != null) {
+            if (mZygoteSocketAddresses[ZygoteType.Secondary.ordinal()] != null) {
                 // The primary zygote didn't match. Try the secondary.
-                attemptConnectionToSecondaryZygote();
+                ZygoteState secondaryZygoteState = attemptConnectionToSecondaryZygote();
 
                 if (secondaryZygoteState.matches(abi)) {
                     return secondaryZygoteState;
@@ -1144,11 +1124,11 @@ public class ZygoteProcess {
      * Instructs the zygote to pre-load the application code for the given Application.
      * Only the app zygote supports this function.
      */
-    public boolean preloadApp(ApplicationInfo appInfo, String abi)
+    public boolean preloadApp(ApplicationInfo appInfo, String abi, ZygoteSelectionMode zsm)
             throws ZygoteStartFailedEx, IOException {
         synchronized (mLock) {
             int ret;
-            ZygoteState state = openZygoteSocketIfNeeded(abi);
+            ZygoteState state = openZygoteSocketIfNeeded(abi, zsm);
             int previousSocketTimeout = state.mZygoteSessionSocket.getSoTimeout();
 
             try {
@@ -1187,7 +1167,9 @@ public class ZygoteProcess {
      */
     public boolean preloadDefault(String abi) throws ZygoteStartFailedEx, IOException {
         synchronized (mLock) {
-            ZygoteState state = openZygoteSocketIfNeeded(abi);
+            ZygoteState state = openZygoteSocketIfNeeded(abi,
+                    // preloadDefault() is called only for 32-bit zygote
+                    ZygoteSelectionMode.Regular);
             // Each query starts with the argument count (1 in this case)
             state.mZygoteOutputWriter.write("1");
             state.mZygoteOutputWriter.newLine();
@@ -1201,11 +1183,11 @@ public class ZygoteProcess {
 
     /**
      * Try connecting to the Zygote over and over again until we hit a time-out.
-     * @param zygoteSocketName The name of the socket to connect to.
+     * @param zygoteType The type of the zygote to connect to.
      */
-    public static void waitForConnectionToZygote(String zygoteSocketName) {
+    public static void waitForConnectionToZygote(ZygoteType zygoteType) {
         final LocalSocketAddress zygoteSocketAddress =
-                new LocalSocketAddress(zygoteSocketName, LocalSocketAddress.Namespace.RESERVED);
+                new LocalSocketAddress(zygoteType.getSocketName(), LocalSocketAddress.Namespace.RESERVED);
         waitForConnectionToZygote(zygoteSocketAddress);
     }
 
@@ -1223,7 +1205,7 @@ public class ZygoteProcess {
                 return;
             } catch (IOException ioe) {
                 Log.w(LOG_TAG,
-                        "Got error connecting to zygote, retrying. msg= " + ioe.getMessage());
+                        "Got error connecting to zygote, retrying. msg= " + ioe.getMessage(), ioe);
             }
 
             try {
@@ -1242,47 +1224,34 @@ public class ZygoteProcess {
         final String command = "1\n--usap-pool-enabled=" + mUsapPoolEnabled + "\n";
 
         synchronized (mLock) {
-            try {
-                attemptConnectionToPrimaryZygote();
-
-                primaryZygoteState.mZygoteOutputWriter.write(command);
-                primaryZygoteState.mZygoteOutputWriter.flush();
-            } catch (IOException ioe) {
-                mUsapPoolEnabled = !mUsapPoolEnabled;
-                Log.w(LOG_TAG, "Failed to inform zygotes of USAP pool status: "
-                        + ioe.getMessage());
-                return;
-            }
-
-            if (mZygoteSecondarySocketAddress != null) {
-                try {
-                    attemptConnectionToSecondaryZygote();
-
+            for (var type : ZygoteType.values()) {
+                if (mZygoteSocketAddresses[type.ordinal()] != null) {
                     try {
-                        secondaryZygoteState.mZygoteOutputWriter.write(command);
-                        secondaryZygoteState.mZygoteOutputWriter.flush();
-
-                        // Wait for the secondary Zygote to finish its work.
-                        secondaryZygoteState.mZygoteInputStream.readInt();
-                    } catch (IOException ioe) {
-                        throw new IllegalStateException(
-                                "USAP pool state change cause an irrecoverable error",
-                                ioe);
+                        ZygoteState zygoteState = attemptConnectionToZygote(type);
+                        zygoteState.mZygoteOutputWriter.write(command);
+                        zygoteState.mZygoteOutputWriter.flush();
+                    } catch (IOException e) {
+                        mUsapPoolEnabled = !mUsapPoolEnabled;
+                        Log.w(LOG_TAG, "Failed to inform zygote " + type + " of USAP pool status", e);
+                        if (type == ZygoteType.Primary) {
+                            return;
+                        }
                     }
-                } catch (IOException ioe) {
-                    // No secondary zygote present.  This is expected on some devices.
                 }
             }
 
-            // Wait for the response from the primary zygote here so the primary/secondary zygotes
-            // can work concurrently.
-            try {
-                // Wait for the primary zygote to finish its work.
-                primaryZygoteState.mZygoteInputStream.readInt();
-            } catch (IOException ioe) {
-                throw new IllegalStateException(
-                        "USAP pool state change cause an irrecoverable error",
-                        ioe);
+            for (var type : ZygoteType.values()) {
+                var state = mZygoteStates[type.ordinal()];
+                if (state != null) {
+                    try {
+                        // Wait for zygote to finish its work.
+                        state.mZygoteInputStream.readInt();
+                    } catch (IOException e) {
+                        throw new IllegalStateException(
+                                "USAP pool state change cause an irrecoverable error",
+                                e);
+                    }
+                }
             }
         }
     }

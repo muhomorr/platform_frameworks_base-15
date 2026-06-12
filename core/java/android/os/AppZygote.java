@@ -218,7 +218,7 @@ public class AppZygote {
             ZygoteProcess.waitForConnectionToZygote(mZygote.getPrimarySocketAddress());
             // preload application code in the zygote
             Log.i(LOG_TAG, "Starting application preload.");
-            mZygote.preloadApp(mAppInfo, abi);
+            mZygote.preloadApp(mAppInfo, abi, zygoteExtArgs.getZygoteSelectionMode());
             Log.i(LOG_TAG, "Application preload done.");
         } catch (Exception e) {
             Log.e(LOG_TAG, "Error connecting to app zygote", e);

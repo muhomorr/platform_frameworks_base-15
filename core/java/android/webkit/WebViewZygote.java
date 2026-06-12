@@ -22,6 +22,7 @@ import android.os.ChildZygoteProcess;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.ZygoteProcess;
+import android.os.ZygoteSelectionMode;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -123,7 +124,7 @@ public class WebViewZygote {
                     Process.FIRST_ISOLATED_UID,
                     Integer.MAX_VALUE); // TODO(b/123615476) deal with user-id ranges properly
             ZygoteProcess.waitForConnectionToZygote(sZygote.getPrimarySocketAddress());
-            sZygote.preloadApp(sPackage.applicationInfo, abi);
+            sZygote.preloadApp(sPackage.applicationInfo, abi, ZygoteSelectionMode.Regular);
         } catch (Exception e) {
             Log.e(LOGTAG, "Error connecting to webview zygote", e);
             stopZygoteLocked();
