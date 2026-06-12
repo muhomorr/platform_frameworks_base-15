@@ -27,6 +27,7 @@ import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.os.Zygote;
+import com.android.internal.os.ZygoteExtraArgs;
 
 /** @hide */
 public class WebViewZygote {
@@ -108,7 +109,7 @@ public class WebViewZygote {
                     sPackage.applicationInfo, null);
             final int[] sharedAppGid = {
                     UserHandle.getSharedAppGid(UserHandle.getAppId(sPackage.applicationInfo.uid)) };
-            sZygote = Process.ZYGOTE_PROCESS.startChildZygote(
+            sZygote = Process.ZYGOTE_PROCESS.startChildZygote(ZygoteExtraArgs.createForWebviewZygote(),
                     "com.android.internal.os.WebViewZygoteInit",
                     "webview_zygote",
                     Process.WEBVIEW_ZYGOTE_UID,
@@ -120,8 +121,7 @@ public class WebViewZygote {
                     TextUtils.join(",", Build.SUPPORTED_ABIS),
                     null, // instructionSet
                     Process.FIRST_ISOLATED_UID,
-                    Integer.MAX_VALUE, // TODO(b/123615476) deal with user-id ranges properly
-                    null /* flatExtraArgs */);
+                    Integer.MAX_VALUE); // TODO(b/123615476) deal with user-id ranges properly
             ZygoteProcess.waitForConnectionToZygote(sZygote.getPrimarySocketAddress());
             sZygote.preloadApp(sPackage.applicationInfo, abi);
         } catch (Exception e) {

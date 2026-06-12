@@ -45,6 +45,7 @@ import android.os.UserHandle;
 import android.provider.DeviceConfig;
 import android.system.ErrnoException;
 import android.system.Os;
+import android.util.DisplayMetrics;
 import android.util.Log;
 
 import com.android.internal.compat.IPlatformCompat;
@@ -60,6 +61,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** @hide */
 public final class Zygote {
@@ -370,21 +372,33 @@ public final class Zygote {
      * @return 0 if this is the child, pid of the child
      * if this is the parent, or -1 on error.
      */
-    static int forkAndSpecialize(int uid, int gid, int[] gids, int runtimeFlags,
+    static int forkAndSpecialize(ZygoteExtraArgs extraArgs, int uid, int gid, int[] gids, int runtimeFlags,
             int[][] rlimits, int mountExternal, String seInfo, String niceName, int[] fdsToClose,
             int[] fdsToIgnore, boolean startChildZygote, String instructionSet, String appDataDir,
             boolean isTopApp, String[] pkgDataInfoList, String[] allowlistedDataInfoList,
             boolean bindMountAppDataDirs, boolean bindMountAppStorageDirs,
-            boolean bindMountSyspropOverrides, ZygoteExtraArgs extraArgs) {
+            boolean bindMountSyspropOverrides) {
+        boolean isExecSpawning = ExecSpawning.isExecSpawnedProcess();
+        if (isExecSpawning) {
+            // needed to run DisplayMetrics class initializer while the process is running in the
+            // zygote SELinux context
+            // noinspection unused
+            int val = DisplayMetrics.DENSITY_DEVICE_STABLE;
+        }
+
+        // preFork is needed in exec spawned processes too since it switches the process into
+        // single-threaded mode which is required for changing the SELinux context
         ZygoteHooks.preFork();
 
-        boolean useFifoUi = SystemProperties.getInt("sys.use_fifo_ui", 0) == 1;
-        int pid = nativeForkAndSpecialize(
+        boolean useFifoUi = isExecSpawning ||
+                (com.android.internal.os.Flags.zygoteEarlyFifoBoost() ?
+                SystemProperties.getInt("sys.use_fifo_ui", 0) == 1 : false);
+        int pid = nativeForkAndSpecialize(extraArgs.makeJniLongArray(),
                 uid, gid, gids, runtimeFlags, rlimits, mountExternal, seInfo, niceName, fdsToClose,
                 fdsToIgnore, startChildZygote, instructionSet, appDataDir, isTopApp,
-                com.android.internal.os.Flags.zygoteEarlyFifoBoost() ? useFifoUi : false,
+                useFifoUi,
                 pkgDataInfoList, allowlistedDataInfoList, bindMountAppDataDirs,
-                bindMountAppStorageDirs, bindMountSyspropOverrides, extraArgs.makeJniLongArray());
+                bindMountAppStorageDirs, bindMountSyspropOverrides);
         if (pid == 0) {
             // Note that this event ends at the end of handleChildProc,
             Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "PostFork");
@@ -402,12 +416,14 @@ public final class Zygote {
         return pid;
     }
 
-    private static native int nativeForkAndSpecialize(int uid, int gid, int[] gids,
+    static native int nativeForkExec(boolean is64Bit, byte[] commandBuf, boolean disableHardenedMalloc, boolean enableCompatVa39Bit);
+
+    private static native int nativeForkAndSpecialize(long[] extraLongArgs, int uid, int gid, int[] gids,
             int runtimeFlags, int[][] rlimits, int mountExternal, String seInfo, String niceName,
             int[] fdsToClose, int[] fdsToIgnore, boolean startChildZygote, String instructionSet,
             String appDataDir, boolean isTopApp, boolean useFifoUi, String[] pkgDataInfoList,
             String[] allowlistedDataInfoList, boolean bindMountAppDataDirs,
-            boolean bindMountAppStorageDirs, boolean bindMountSyspropOverrides, long[] extraLongArgs);
+            boolean bindMountAppStorageDirs, boolean bindMountSyspropOverrides);
 
     /**
      * Specialize an unspecialized app process.  The current VM must have been started
@@ -440,17 +456,16 @@ public final class Zygote {
      * @param bindMountSyspropOverrides True if the zygote needs to mount the override system
      *                                  properties
      */
-    private static void specializeAppProcess(int uid, int gid, int[] gids, int runtimeFlags,
+    private static void specializeAppProcess(ZygoteExtraArgs extraArgs, int uid, int gid, int[] gids, int runtimeFlags,
             int[][] rlimits, int mountExternal, String seInfo, String niceName,
             boolean startChildZygote, String instructionSet, String appDataDir, boolean isTopApp,
             String[] pkgDataInfoList, String[] allowlistedDataInfoList,
             boolean bindMountAppDataDirs, boolean bindMountAppStorageDirs,
-            boolean bindMountSyspropOverrides, ZygoteExtraArgs extraArgs) {
-        nativeSpecializeAppProcess(uid, gid, gids, runtimeFlags, rlimits, mountExternal, seInfo,
+            boolean bindMountSyspropOverrides) {
+        nativeSpecializeAppProcess(extraArgs.makeJniLongArray(), uid, gid, gids, runtimeFlags, rlimits, mountExternal, seInfo,
                 niceName, startChildZygote, instructionSet, appDataDir, isTopApp,
                 pkgDataInfoList, allowlistedDataInfoList,
-                bindMountAppDataDirs, bindMountAppStorageDirs, bindMountSyspropOverrides,
-                extraArgs.makeJniLongArray());
+                bindMountAppDataDirs, bindMountAppStorageDirs, bindMountSyspropOverrides);
 
         // Note that this event ends at the end of handleChildProc.
         Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "PostFork");
@@ -471,12 +486,12 @@ public final class Zygote {
         ZygoteHooks.postForkCommon();
     }
 
-    private static native void nativeSpecializeAppProcess(int uid, int gid, int[] gids,
+    private static native void nativeSpecializeAppProcess(long[] extraLongArgs, int uid, int gid, int[] gids,
             int runtimeFlags, int[][] rlimits, int mountExternal, String seInfo, String niceName,
             boolean startChildZygote, String instructionSet, String appDataDir, boolean isTopApp,
             String[] pkgDataInfoList, String[] allowlistedDataInfoList,
             boolean bindMountAppDataDirs, boolean bindMountAppStorageDirs,
-            boolean bindMountSyspropOverrides, long[] extraLongArgs);
+            boolean bindMountSyspropOverrides);
 
     /**
      * Called to do any initialization before starting an application.
@@ -584,14 +599,12 @@ public final class Zygote {
      *   - Initializing security properties
      *   - Unmounting storage as appropriate
      *   - Loading necessary performance profile information
-     *
-     * @param isPrimary  True if this is the zygote process, false if it is zygote_secondary
      */
-    static void initNativeState(boolean isPrimary) {
-        nativeInitNativeState(isPrimary);
+    static void initNativeState(ZygoteType type) {
+        nativeInitNativeState(ExecSpawning.isExecSpawnedProcess(), type.getSocketName(), type.getUsapPoolSocketName());
     }
 
-    protected static native void nativeInitNativeState(boolean isPrimary);
+    protected static native void nativeInitNativeState(boolean isExecSpawning, String socketName, String usapPoolSocketName);
 
     /**
      * Returns the raw string value of a system property.
@@ -726,7 +739,7 @@ public final class Zygote {
      *         read more
      * @param zygoteSocket socket from which to obtain new connections when current argBuffer
      *         one is disconnected
-     * @param expectedUId Uid of peer for initial requests. Subsequent requests from a different
+     * @param expectedUid Uid of peer for initial requests. Subsequent requests from a different
      *               peer will cause us to return rather than perform the requested fork.
      * @param minUid Minimum Uid enforced for all but first fork request. The caller checks
      *               the Uid policy for the initial request.
@@ -884,14 +897,13 @@ public final class Zygote {
                 }
             }
 
-            specializeAppProcess(args.mUid, args.mGid, args.mGids,
+            specializeAppProcess(args.mExtraArgs, args.mUid, args.mGid, args.mGids,
                                  args.mRuntimeFlags, rlimits, args.mMountExternal,
                                  args.mSeInfo, args.mNiceName, args.mStartChildZygote,
                                  args.mInstructionSet, args.mAppDataDir, args.mIsTopApp,
                                  args.mPkgDataInfoList, args.mAllowlistedDataInfoList,
                                  args.mBindMountAppDataDirs, args.mBindMountAppStorageDirs,
-                                 args.mBindMountSyspropOverrides,
-                                 args.mExtraArgs);
+                                 args.mBindMountSyspropOverrides);
 
             // While `specializeAppProcess` sets the thread name on the process's main thread, this
             // is distinct from the app process name which appears in stack traces, as the latter is
@@ -1374,6 +1386,7 @@ public final class Zygote {
     }
 
     private static int decideTaggingLevel(
+            @NonNull AtomicBoolean shouldForciblyEnableTagging,
             @NonNull ApplicationInfo info,
             @Nullable ProcessInfo processInfo,
             @Nullable IPlatformCompat platformCompat) {
@@ -1391,6 +1404,8 @@ public final class Zygote {
                 level = MEMORY_TAG_LEVEL_ASYNC;
 
                 if (!si.isImmutable()) {
+                    shouldForciblyEnableTagging.set(true);
+                    // This option prevents the app from downgrading the heap memory tagging level and
                     // from intercepting MTE SIGSEGV signal (it's used for crashing the process
                     // after tag check failure).
                     //
@@ -1489,6 +1504,7 @@ public final class Zygote {
      * for a given app.
      */
     public static int getMemorySafetyRuntimeFlags(
+            @NonNull AtomicBoolean shouldForciblyEnableTagging,
             @NonNull ApplicationInfo info,
             @Nullable ProcessInfo processInfo,
             @Nullable String instructionSet,
@@ -1505,7 +1521,7 @@ public final class Zygote {
         // fine as we haven't seen this configuration in practice, and we can reasonable assume
         // that if tagging is desired, the system server will be 64-bit.
         if (instructionSet == null || instructionSet.equals("arm64")) {
-            runtimeFlags |= decideTaggingLevel(info, processInfo, platformCompat);
+            runtimeFlags |= decideTaggingLevel(shouldForciblyEnableTagging, info, processInfo, platformCompat);
         }
         if (enableNativeHeapZeroInit(info, processInfo, platformCompat)) {
             runtimeFlags |= NATIVE_HEAP_ZERO_INIT_ENABLED;
@@ -1522,13 +1538,12 @@ public final class Zygote {
         final IPlatformCompat platformCompat =
                 IPlatformCompat.Stub.asInterface(
                         ServiceManager.getService(Context.PLATFORM_COMPAT_SERVICE));
+        var shouldForciblyEnableTagging = new AtomicBoolean();
         int runtimeFlags =
-                getMemorySafetyRuntimeFlags(
+                getMemorySafetyRuntimeFlags(shouldForciblyEnableTagging,
                         info, processInfo, null /*instructionSet*/, platformCompat);
-
-        // Memory tagging can be forcibly enabled only in immediate children of the primary zygote
-        // (which includes secondary zygotes)
-        runtimeFlags &= ~FORCIBLY_ENABLE_MEMORY_TAGGING;
+        // the value of shouldForciblyEnableTagging is intentionally ignored since it's determined
+        // already at an earlier point in ProcessList.startLocked()
 
         // TBI ("fake" pointer tagging) in AppZygote is controlled by a separate compat feature.
         if ((runtimeFlags & MEMORY_TAG_LEVEL_MASK) == MEMORY_TAG_LEVEL_TBI

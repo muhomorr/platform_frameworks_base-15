@@ -483,8 +483,6 @@ void FileDescriptorInfo::DetachSocket(fail_fn_t fail_fn) const {
 // TODO: Move the definitions here and eliminate the forward declarations. They
 // temporarily help making code reviews easier.
 static int ParseFd(dirent* dir_entry, int dir_fd);
-static std::unique_ptr<std::set<int>> GetOpenFdsIgnoring(const std::vector<int>& fds_to_ignore,
-                                                         fail_fn_t fail_fn);
 
 FileDescriptorTable* FileDescriptorTable::Create(const std::vector<int>& fds_to_ignore,
                                                  fail_fn_t fail_fn) {
@@ -496,7 +494,7 @@ FileDescriptorTable* FileDescriptorTable::Create(const std::vector<int>& fds_to_
   return new FileDescriptorTable(std::move(open_fd_map));
 }
 
-static std::unique_ptr<std::set<int>> GetOpenFdsIgnoring(const std::vector<int>& fds_to_ignore,
+std::unique_ptr<std::set<int>> GetOpenFdsIgnoring(const std::vector<int>& fds_to_ignore,
                                                          fail_fn_t fail_fn) {
   DIR* proc_fd_dir = opendir(kFdPath);
   if (proc_fd_dir == nullptr) {

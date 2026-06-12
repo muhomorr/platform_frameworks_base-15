@@ -110,4 +110,7 @@ class FileDescriptorTable {
   DISALLOW_COPY_AND_ASSIGN(FileDescriptorTable);
 };
 
+std::unique_ptr<std::set<int>> GetOpenFdsIgnoring(const std::vector<int>& fds_to_ignore,
+                                                         fail_fn_t fail_fn);
+
 #endif  // FRAMEWORKS_BASE_CORE_JNI_FD_UTILS_H_

@@ -183,12 +183,14 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.ServiceConnection;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.GosPackageState;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.pm.ServiceInfo.ForegroundServiceType;
+import android.ext.settings.app.AswUseExecSpawning;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
@@ -248,6 +250,7 @@ import com.android.server.am.ActivityManagerService.ItemMatcher;
 import com.android.server.am.LowMemDetector.MemFactor;
 import com.android.server.am.ServiceRecord.ShortFgsInfo;
 import com.android.server.am.ServiceRecord.TimeLimitedFgsInfo;
+import com.android.server.ext.SystemErrorNotification;
 import com.android.server.pm.KnownPackages;
 import com.android.server.uri.NeededUriGrants;
 import com.android.server.utils.AnrTimer;
@@ -6087,8 +6090,14 @@ public final class ActiveServices {
                             r.definingUid, r.serviceInfo.processName);
                 }
                 if ((r.serviceInfo.flags & ServiceInfo.FLAG_USE_APP_ZYGOTE) != 0) {
-                    hostingRecord = HostingRecord.byAppZygote(r.instanceName, r.definingPackageName,
-                            r.definingUid, r.serviceInfo.processName);
+                    if (!r.definingPackageName.equals(r.appInfo.packageName)) {
+                        new SystemErrorNotification("exec spawning error", "mismatch between definingPackageName (" + r.definingPackageName + ") and appInfo package name (" + r.appInfo.packageName + ") for service " + r.name).show(mAm.mContext);
+                    }
+                    if (!AswUseExecSpawning.I.get(mAm.mContext, r.userId, r.appInfo, GosPackageState.get(r.definingPackageName, r.userId))) {
+                        // app zygotes are pointless when exec spawning is used
+                        hostingRecord = HostingRecord.byAppZygote_(r.instanceName, r.definingPackageName,
+                                r.definingUid, r.serviceInfo.processName);
+                    }
                 }
             }
         }

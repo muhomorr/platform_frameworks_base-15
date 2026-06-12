@@ -33,6 +33,7 @@ import android.util.Slog;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.os.Zygote;
 import com.android.internal.os.ZygoteConfig;
+import com.android.internal.os.ZygoteExtraArgs;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
@@ -339,7 +340,8 @@ public class ZygoteProcess {
      * @return An object that describes the result of the attempt to start the process.
      * @throws RuntimeException on fatal start failure
      */
-    public final Process.ProcessStartResult start(@NonNull final String processClass,
+    public final Process.ProcessStartResult start(@NonNull final ZygoteExtraArgs zygoteExtArgs,
+                                                  @NonNull final String processClass,
                                                   final String niceName,
                                                   int uid, int gid, @Nullable int[] gids,
                                                   int runtimeFlags, int mountExternal,
@@ -361,19 +363,19 @@ public class ZygoteProcess {
                                                   boolean bindMountAppStorageDirs,
                                                   boolean bindOverrideSysprops,
                                                   long startSeq,
-                                                  @Nullable String[] zygoteArgs, @Nullable String flatExtraArgs) {
+                                                  @Nullable String[] zygoteArgs) {
         // TODO (chriswailes): Is there a better place to check this value?
         if (fetchUsapPoolEnabledPropWithMinInterval()) {
             informZygotesOfUsapPoolStatus();
         }
 
         try {
-            return startViaZygote(processClass, niceName, uid, gid, gids,
+            return startViaZygote(zygoteExtArgs, processClass, niceName, uid, gid, gids,
                     runtimeFlags, mountExternal, targetSdkVersion, seInfo,
                     abi, instructionSet, appDataDir, invokeWith, /*startChildZygote=*/ false,
                     packageName, zygotePolicyFlags, isTopApp, disabledCompatChanges,
                     pkgDataInfoMap, allowlistedDataInfoList, bindMountAppsData,
-                    bindMountAppStorageDirs, bindOverrideSysprops, startSeq, zygoteArgs, flatExtraArgs);
+                    bindMountAppStorageDirs, bindOverrideSysprops, startSeq, zygoteArgs);
         } catch (ZygoteStartFailedEx ex) {
             Log.e(LOG_TAG,
                     "Starting VM process through Zygote failed");
@@ -629,7 +631,8 @@ public class ZygoteProcess {
      * @return An object that describes the result of the attempt to start the process.
      * @throws ZygoteStartFailedEx if process start failed for any reason
      */
-    private Process.ProcessStartResult startViaZygote(@NonNull final String processClass,
+    private Process.ProcessStartResult startViaZygote(@NonNull final ZygoteExtraArgs zygoteExtArgs,
+                                                      @NonNull final String processClass,
                                                       @Nullable final String niceName,
                                                       final int uid, final int gid,
                                                       @Nullable final int[] gids,
@@ -653,8 +656,7 @@ public class ZygoteProcess {
                                                       boolean bindMountAppStorageDirs,
                                                       boolean bindMountOverrideSysprops,
                                                       long startSeq,
-                                                      @Nullable String[] extraArgs,
-                                                      @Nullable String flatExtraArgs)
+                                                      @Nullable String[] extraArgs)
                                                       throws ZygoteStartFailedEx {
         if (Flags.nativeFrameworkPrototype()
                 && (zygotePolicyFlags & ZYGOTE_POLICY_FLAG_NATIVE_PROCESS) != 0) {
@@ -671,6 +673,7 @@ public class ZygoteProcess {
         }
 
         ArrayList<String> argsForZygote = new ArrayList<>();
+        zygoteExtArgs.toZygoteArgList(argsForZygote);
 
         // --runtime-args, --setuid=, --setgid=,
         // and --setgroups= must go first
@@ -801,10 +804,6 @@ public class ZygoteProcess {
             }
 
             argsForZygote.add(sb.toString());
-        }
-
-        if (flatExtraArgs != null) {
-            argsForZygote.add(flatExtraArgs);
         }
 
         argsForZygote.add(processClass);
@@ -1310,7 +1309,7 @@ public class ZygoteProcess {
      * @param uidRangeStart The first UID in the range the child zygote may setuid()/setgid() to
      * @param uidRangeEnd The last UID in the range the child zygote may setuid()/setgid() to
      */
-    public ChildZygoteProcess startChildZygote(final String processClass,
+    public ChildZygoteProcess startChildZygote(final ZygoteExtraArgs zygoteExtArgs, final String processClass,
                                                final String niceName,
                                                int uid, int gid, int[] gids,
                                                int runtimeFlags,
@@ -1319,8 +1318,7 @@ public class ZygoteProcess {
                                                String acceptedAbiList,
                                                String instructionSet,
                                                int uidRangeStart,
-                                               int uidRangeEnd,
-                                               @Nullable String flatExtraArgs) {
+                                               int uidRangeEnd) {
         // Create an unguessable address in the global abstract namespace.
         final LocalSocketAddress serverAddress = new LocalSocketAddress(
                 processClass + "/" + UUID.randomUUID().toString());
@@ -1334,7 +1332,7 @@ public class ZygoteProcess {
         try {
             // We will bind mount app data dirs so app zygote can't access /data/data, while
             // we don't need to bind mount storage dirs as /storage won't be mounted.
-            result = startViaZygote(processClass, niceName, uid, gid,
+            result = startViaZygote(zygoteExtArgs, processClass, niceName, uid, gid,
                     gids, runtimeFlags, 0 /* mountExternal */, 0 /* targetSdkVersion */, seInfo,
                     abi, instructionSet, null /* appDataDir */, null /* invokeWith */,
                     true /* startChildZygote */, null /* packageName */,
@@ -1342,7 +1340,7 @@ public class ZygoteProcess {
                     null /* disabledCompatChanges */, null /* pkgDataInfoMap */,
                     null /* allowlistedDataInfoList */, true /* bindMountAppsData*/,
                     /* bindMountAppStorageDirs */ false, /*bindMountOverrideSysprops */ false,
-                    /* startSeq */ 0, extraArgs, flatExtraArgs);
+                    /* startSeq */ 0, extraArgs);
 
         } catch (ZygoteStartFailedEx ex) {
             throw new RuntimeException("Starting child-zygote through Zygote failed", ex);
