@@ -3110,27 +3110,27 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         // process is multithreaded at fork time since it has Java daemon threads in addition to the
         // main thread.
         if (close_range(0, cmd_fd - 1, CLOSE_RANGE_CLOEXEC) != 0) {
-            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) up to %d failed: %s", cmd_fd - 1, strerror(errno));
+            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) up to %d failed: %#m", cmd_fd - 1);
             _exit(1);
         }
         if (close_range(cmd_fd + 1, ~0U, CLOSE_RANGE_CLOEXEC) != 0) {
-            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) from %d failed: %s", cmd_fd + 1, strerror(errno));
+            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) from %d failed: %#m", cmd_fd + 1);
             _exit(1);
         }
 
 #if defined(__aarch64__)
         const int FLAG_COMPAT_VA_39_BIT = 1 << 30;
         execveat(-1, argv[0], (char **) argv, environ, enable_compat_va_39_bit ? FLAG_COMPAT_VA_39_BIT : 0);
-        async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execveat failed: %s", strerror(errno));
+        async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execveat failed: %#m");
         if (errno == EINVAL) {
             // kernel doesn't support FLAG_COMPAT_VA_39_BIT, or a different error that will
             // be returned by execv() anyway
             execv(argv[0], (char **) argv);
-            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execv failed: %s", strerror(errno));
+            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execv failed: %#m");
         }
 #else
         execv(argv[0], (char **) argv);
-        async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execv failed: %s", strerror(errno));
+        async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execv failed: %#m");
 #endif // defined(__aarch64__)
 
         // exec failed
