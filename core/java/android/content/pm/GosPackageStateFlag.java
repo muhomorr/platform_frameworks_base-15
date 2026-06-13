@@ -66,6 +66,8 @@ public interface GosPackageStateFlag {
             PLAY_INTEGRITY_API_USED_AT_LEAST_ONCE,
             SUPPRESS_PLAY_INTEGRITY_API_NOTIF,
             BLOCK_PLAY_INTEGRITY_API,
+            USE_EXEC_SPAWNING_NON_DEFAULT,
+            USE_EXEC_SPAWNING,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface Enum {}
