@@ -37,6 +37,7 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <inttypes.h>
+#include <linux/close_range.h>
 #include <malloc.h>
 #include <mntent.h>
 #include <signal.h>
@@ -3050,10 +3051,6 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
                                                     jbyteArray command_buf,
                                                     jboolean disable_hardened_malloc,
                                                     jboolean enable_compat_va_39_bit) {
-    auto fail_fn = std::bind(zygote::ZygoteFailure, env,
-                           "exec_spawning_zygote",
-                           nullptr, _1);
-
     int cmd_fd = memfd_create("zygote_fork_exec_cmds", 0);
     if (cmd_fd < 0) {
         ALOGE("memfd_create failed: %s", strerror(errno));
@@ -3094,17 +3091,7 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         }
     }
 
-    // see zygote::ForkCommon for the reasoning behind this sequence
-    // (SetSignalHandlers -> block SIGCHLD -> get open fds)
-    SetSignalHandlers();
-    BlockSignal(SIGCHLD, fail_fn);
-
-    std::vector<int> fds_to_ignore;
-    fds_to_ignore.push_back(cmd_fd);
-    std::unique_ptr<std::set<int>> open_fds = GetOpenFdsIgnoring(fds_to_ignore, fail_fn);
-
     pid_t pid = fork();
-    UnblockSignal(SIGCHLD, fail_fn);
 
     if (pid != 0) {
         // parent process
@@ -3119,12 +3106,18 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         }
         return pid;
     } else {
-      // close all file descriptors except for the command file descriptor
-      for (int fd : *open_fds) {
-        if (close(fd) != 0) {
-            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close(%d) failed: %s", fd, strerror(errno));
+        // Close all file descriptors except for the command file descriptor. Note that the parent
+        // process is multithreaded at fork time since it has Java daemon threads in addition to the
+        // main thread.
+        if (close_range(0, cmd_fd - 1, CLOSE_RANGE_CLOEXEC) != 0) {
+            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) up to %d failed: %s", cmd_fd - 1, strerror(errno));
+            _exit(1);
         }
-      }
+        if (close_range(cmd_fd + 1, ~0U, CLOSE_RANGE_CLOEXEC) != 0) {
+            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) from %d failed: %s", cmd_fd + 1, strerror(errno));
+            _exit(1);
+        }
+
 #if defined(__aarch64__)
         const int FLAG_COMPAT_VA_39_BIT = 1 << 30;
         execveat(-1, argv[0], (char **) argv, environ, enable_compat_va_39_bit ? FLAG_COMPAT_VA_39_BIT : 0);
