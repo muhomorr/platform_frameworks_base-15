@@ -1094,22 +1094,30 @@ public class ZygoteProcess {
         return zygoteState;
     }
 
+    @GuardedBy("mLock")
     private void startCompatZygote() throws IOException {
         SystemProperties.set("sys.start_compat_zygote", "1");
         boolean started = false;
         LocalSocketAddress zygoteSocketAddress = mZygoteSocketAddresses[ZygoteType.Compat.ordinal()];
 
         try (var zygoteSocket = new LocalSocket()) {
-            for (int i = 0; i < 2000; ++i) {
+            // The following loop is a lighter-weight variant of waitForConnectionToZygote(). Note
+            // that both mLock and the global ActivityManagerService lock are held at this point.
+            // zygote_compat startup/ usually completes in under 2 seconds. Starting zygote_compat
+            // lazily saves ~200 MiB of RAM as of Android 16 QPR2 when zygote_compat isn't needed.
+            final int TIMEOUT_MS = 20_000;
+            final int RETRY_DELAY_MS = 10;
+            int numRetries = TIMEOUT_MS / RETRY_DELAY_MS;
+            for (int i = 0; i < numRetries; ++i) {
                 try {
                     zygoteSocket.connect(zygoteSocketAddress);
                     started = true;
                     break;
                 } catch (IOException e) {
-                    if ((i % 20) == 0) {
+                    if ((i % 50) == 0) {
                         Log.d(LOG_TAG, "waiting for compat zygote to start");
                     }
-                    SystemClock.sleep(10);
+                    SystemClock.sleep(RETRY_DELAY_MS);
                 }
             }
         }
