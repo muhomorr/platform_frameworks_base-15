@@ -3091,7 +3091,8 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         }
     }
 
-    pid_t pid = fork();
+    // fork() runs bionic fork hooks which are unnecessary for this use-case
+    pid_t pid = _Fork();
 
     if (pid != 0) {
         // parent process
