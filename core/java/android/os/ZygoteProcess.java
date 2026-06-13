@@ -942,6 +942,8 @@ public class ZygoteProcess {
 
     private static boolean isLazilyStarted(ZygoteType type) {
         switch (type) {
+            case ZygoteType.Compat:
+                return true;
             default:
                 return false;
         }
