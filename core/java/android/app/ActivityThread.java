@@ -5545,6 +5545,7 @@ public final class ActivityThread extends ClientTransactionHandler
                 cl = packageInfo.getClassLoader();
             }
             {
+                com.android.internal.os.ExecSpawning.handleAppZygotePreload(data.info, packageInfo);
                 String className = data.info.name;
                 service = ActivityThreadHooks.instantiateService(className);
                 if (service == null) {

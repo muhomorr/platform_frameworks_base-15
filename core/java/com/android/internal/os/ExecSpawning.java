@@ -1,5 +1,9 @@
 package com.android.internal.os;
 
+import android.app.LoadedApk;
+import android.app.ZygotePreload;
+import android.content.ComponentName;
+import android.content.pm.ServiceInfo;
 import android.os.ParcelFileDescriptor;
 import android.system.ErrnoException;
 import android.system.Os;
@@ -100,5 +104,61 @@ public class ExecSpawning {
             }
         }
         throw new IllegalStateException("unreachable");
+    }
+
+    private static boolean handledAppZygotePreload;
+
+    // App zygote preloading is pointless when exec spawning is used but apps might depend on it
+    public static void handleAppZygotePreload(ServiceInfo serviceInfo, LoadedApk loadedApk) {
+        if (!isExecSpawnedProcess()) {
+            return;
+        }
+        if ((serviceInfo.flags & ServiceInfo.FLAG_USE_APP_ZYGOTE) == 0) {
+            return;
+        }
+
+        String zygotePreloadName = serviceInfo.applicationInfo.zygotePreloadName;
+        if (zygotePreloadName == null) {
+            Log.e(TAG, "maybePerformAppZygotePreload: FLAG_USE_APP_ZYGOTE is set but zygotePreloadName is null");
+            return;
+        }
+
+        switch (zygotePreloadName) {
+            case "org.chromium.chrome.app.TrichromeZygotePreload":
+            case "org.chromium.content_public.app.ZygotePreload":
+            case "org.mozilla.gecko.process.ZygotePreload":
+                Log.i(TAG, "skipping ZygotePreload that is known to be optional: " + zygotePreloadName);
+                return;
+        }
+
+        // Note that the process is in the isolated_app SELinux domain at this point. When zygote
+        // spawning is used, app zygote is running in the app_zygote SELinux domain when it performs
+        // preloading. This shouldn't cause issues in practice since app_zygote and isolated_app
+        // domains have similar level of isolation.
+        synchronized (ExecSpawning.class) {
+            if (handledAppZygotePreload) {
+                throw new IllegalStateException("app zygote preloading was already handled");
+            }
+            handledAppZygotePreload = true;
+
+            String className = ComponentName.createRelative(
+                    serviceInfo.applicationInfo.packageName, zygotePreloadName).getClassName();
+
+            // copied from AppZygoteInit.handlePreloadApp()
+            try {
+                Class cls = Class.forName(className, true, loadedApk.getClassLoader());
+                if (!ZygotePreload.class.isAssignableFrom(cls)) {
+                    Log.e(TAG, className + " does not implement "
+                            + ZygotePreload.class.getName());
+                    return;
+                }
+                var preloadObject = (ZygotePreload) cls.getConstructor().newInstance();
+                Log.i(TAG, "handleAppZygotePreload: starting preload via " + zygotePreloadName);
+                preloadObject.doPreload(serviceInfo.applicationInfo);
+                Log.i(TAG, "handleAppZygotePreload: finished preload");
+            } catch (ReflectiveOperationException e) {
+                Log.e(TAG, "preload failed for " + zygotePreloadName, e);
+            }
+        }
     }
 }
