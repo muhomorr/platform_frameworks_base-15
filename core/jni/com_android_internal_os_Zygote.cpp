@@ -3143,6 +3143,18 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
     // first, but 32-bit zygote won't have them set if this is the first app launch zygote command.
     SetSignalHandlers();
 
+    sigset64_t full_sig_set;
+    sigfillset64(&full_sig_set);
+
+    sigset64_t prev_sig_set;
+
+    // ensure that no new file descriptors are racily opened by signal handlers in the child process
+    if (int err = pthread_sigmask64(SIG_BLOCK, &full_sig_set, &prev_sig_set); err != 0) {
+        ALOGE("pthread_sigmask64 failed before fork: %s", strerror(err));
+        close(cmd_fd);
+        return -1;
+    }
+
     // fork() runs bionic fork hooks which are unnecessary for this use-case
     pid_t pid = _Fork();
 
@@ -3150,6 +3162,10 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         // parent process
         if (pid == -1) {
             ALOGE("fork failed: %s", strerror(errno));
+        }
+        if (int err = pthread_sigmask64(SIG_SETMASK, &prev_sig_set, nullptr); err != 0) {
+            ALOGE("pthread_sigmask64 failed in parent after fork: %s", strerror(err));
+            _exit(1);
         }
         close(cmd_fd);
         if (is_environment_cloned) {
@@ -3166,6 +3182,11 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         }
         if (close_range(cmd_fd + 1, ~0U, CLOSE_RANGE_CLOEXEC) != 0) {
             async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) from %d failed: %#m", cmd_fd + 1);
+            _exit(1);
+        }
+
+        if (int err = pthread_sigmask64(SIG_SETMASK, &prev_sig_set, nullptr); err != 0) {
+            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "pthread_sigmask64 failed in child after fork: %s", strerrorname_np(err));
             _exit(1);
         }
 
