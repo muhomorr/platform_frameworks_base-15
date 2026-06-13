@@ -1069,7 +1069,9 @@ public class ZygoteProcess {
         int typeIdx = type.ordinal();
         ZygoteState zygoteState = mZygoteStates[typeIdx];
         if (zygoteState == null || zygoteState.isClosed()) {
-            Log.d(LOG_TAG, "attemptConnectionToZygote " + type, new Throwable());
+            if (Log.isLoggable(LOG_TAG, Log.VERBOSE)) {
+                Log.v(LOG_TAG, "attemptConnectionToZygote " + type, new Throwable());
+            }
             if (type == ZygoteType.Compat) {
                 if (!"running".equals(SystemProperties.get("init.svc.zygote_compat", null))) {
                     long start = SystemClock.elapsedRealtime();
