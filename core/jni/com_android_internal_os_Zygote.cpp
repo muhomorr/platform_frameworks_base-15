@@ -3106,7 +3106,9 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         }
 
         if (lseek(cmd_fd, 0, SEEK_SET) != 0) {
-            env->FatalError(CREATE_ERROR("unable to lseek cmd_fd: %s", strerror(errno)).c_str());
+            ALOGE("lseek(cmd_fd) failed: %s", strerror(errno));
+            close(cmd_fd);
+            return -1;
         }
     }
 
