@@ -3046,6 +3046,45 @@ static jint com_android_internal_os_Zygote_nativeCurrentTaggingLevel(JNIEnv* env
 #endif // defined(__aarch64__)
 }
 
+static void free_environ(char** env) {
+    for (size_t i = 0; env[i] != nullptr; ++i) {
+        free(env[i]);
+    }
+    free(env);
+}
+
+static char** clone_environ(const char* extra_variable) {
+    size_t count = 0;
+
+    while (environ[count] != nullptr) {
+        ++count;
+    }
+
+    // 1 slot for NULL terminator and 1 slot for extra_variable
+    char** new_environ = (char**) calloc(count + 2, sizeof(char*));
+    if (new_environ == nullptr) {
+        return nullptr;
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        new_environ[i] = strdup(environ[i]);
+        if (new_environ[i] == nullptr) {
+            free_environ(new_environ);
+            return nullptr;
+        }
+    }
+
+    if (extra_variable != nullptr) {
+        new_environ[count] = strdup(extra_variable);
+        if (new_environ[count] == nullptr) {
+            free_environ(new_environ);
+            return nullptr;
+        }
+    }
+
+    return new_environ;
+}
+
 static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
                                                     jboolean is_64_bit,
                                                     jbyteArray command_buf,
@@ -3083,12 +3122,19 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         nullptr,
     };
 
+    bool is_environment_cloned = false;
+    char** environment;
     if (disable_hardened_malloc) {
-        if (setenv("DISABLE_HARDENED_MALLOC", "1", 1) != 0) {
-            ALOGE("setenv failed: %s", strerror(errno));
+        // setenv() can't be used since zygote is multi-threaded at this point
+        environment = clone_environ("DISABLE_HARDENED_MALLOC=1");
+        if (environment == nullptr) {
+            ALOGE("clone_environ failed: %s", strerror(errno));
             close(cmd_fd);
             return -1;
         }
+        is_environment_cloned = true;
+    } else {
+        environment = environ;
     }
 
     // Signal handlers are set at this point in 64-bit zygote since system_server is forked from it
@@ -3104,10 +3150,8 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
             ALOGE("fork failed: %s", strerror(errno));
         }
         close(cmd_fd);
-        if (disable_hardened_malloc) {
-            if (unsetenv("DISABLE_HARDENED_MALLOC") != 0) {
-                env->FatalError(CREATE_ERROR("unsetenv(DISABLE_HARDENED_MALLOC) failed: %s", strerror(errno)).c_str());
-            }
+        if (is_environment_cloned) {
+            free_environ(environment);
         }
         return pid;
     } else {
@@ -3125,17 +3169,17 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
 
 #if defined(__aarch64__)
         const int FLAG_COMPAT_VA_39_BIT = 1 << 30;
-        execveat(-1, argv[0], (char **) argv, environ, enable_compat_va_39_bit ? FLAG_COMPAT_VA_39_BIT : 0);
+        execveat(-1, argv[0], (char **) argv, environment, enable_compat_va_39_bit ? FLAG_COMPAT_VA_39_BIT : 0);
         async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execveat failed: %#m");
         if (errno == EINVAL) {
             // kernel doesn't support FLAG_COMPAT_VA_39_BIT, or a different error that will
-            // be returned by execv() anyway
-            execv(argv[0], (char **) argv);
-            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execv failed: %#m");
+            // be returned by execve() anyway
+            execve(argv[0], (char **) argv, environment);
+            async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execve failed: %#m");
         }
 #else
-        execv(argv[0], (char **) argv);
-        async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execv failed: %#m");
+        execve(argv[0], (char **) argv, environment);
+        async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "execve failed: %#m");
 #endif // defined(__aarch64__)
 
         // exec failed
