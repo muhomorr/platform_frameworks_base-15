@@ -3106,9 +3106,9 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         }
         return pid;
     } else {
-        // Close all file descriptors except for the command file descriptor. Note that the parent
-        // process is multithreaded at fork time since it has Java daemon threads in addition to the
-        // main thread.
+        // Set CLOEXEC for all file descriptors except for the command file descriptor. Note that
+        // the parent process is multithreaded at fork time since it has Java daemon threads in
+        // addition to the main thread.
         if (close_range(0, cmd_fd - 1, CLOSE_RANGE_CLOEXEC) != 0) {
             async_safe_format_log(ANDROID_LOG_ERROR, "ZygoteForkExec", "close_range(CLOSE_RANGE_CLOEXEC) up to %d failed: %#m", cmd_fd - 1);
             _exit(1);
