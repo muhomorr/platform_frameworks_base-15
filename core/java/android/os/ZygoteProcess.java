@@ -534,6 +534,7 @@ public class ZygoteProcess {
      * arguments.
      */
     private static final String[] INVALID_USAP_FLAGS = {
+        ZygoteExtraArgs.ARG_COMPLEX_COMMAND_MARKER, // USAPs are pointless when exec spawning is used
         "--query-abi-list",
         "--get-pid",
         "--preload-default",
