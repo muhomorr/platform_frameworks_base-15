@@ -926,11 +926,24 @@ public class ZygoteProcess {
             mApiDenylistExemptions = exemptions;
             boolean ok = true;
             for (var type : ZygoteType.values()) {
+                ZygoteState zygoteState = mZygoteStates[type.ordinal()];
+                if (zygoteState == null && isLazilyStarted(type)) {
+                    // maybeSetApiDenylistExemptions() is called during initial attemptConnectionToZygote()
+                    continue;
+                }
+
                 if (!maybeSetApiDenylistExemptions(mZygoteStates[type.ordinal()], true)) {
                     ok = false;
                 }
             }
             return ok;
+        }
+    }
+
+    private static boolean isLazilyStarted(ZygoteType type) {
+        switch (type) {
+            default:
+                return false;
         }
     }
 
