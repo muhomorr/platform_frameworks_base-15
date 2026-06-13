@@ -3091,6 +3091,10 @@ static jint com_android_internal_os_Zygote_nativeForkExec(JNIEnv* env, jclass,
         }
     }
 
+    // Signal handlers are set at this point in 64-bit zygote since system_server is forked from it
+    // first, but 32-bit zygote won't have them set if this is the first app launch zygote command.
+    SetSignalHandlers();
+
     // fork() runs bionic fork hooks which are unnecessary for this use-case
     pid_t pid = _Fork();
 
