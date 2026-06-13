@@ -6090,12 +6090,23 @@ public final class ActiveServices {
                             r.definingUid, r.serviceInfo.processName);
                 }
                 if ((r.serviceInfo.flags & ServiceInfo.FLAG_USE_APP_ZYGOTE) != 0) {
-                    if (!r.definingPackageName.equals(r.appInfo.packageName)) {
-                        new SystemErrorNotification("exec spawning error", "mismatch between definingPackageName (" + r.definingPackageName + ") and appInfo package name (" + r.appInfo.packageName + ") for service " + r.name).show(mAm.mContext);
+                    // definingPackageName is distinct from r.appInfo.packageName when the service
+                    // is an external service, see ServiceInfo.FLAG_EXTERNAL_SERVICE
+                    String definingPkgName = r.definingPackageName;
+                    int userId = r.userId;
+
+                    var pmi = LocalServices.getService(PackageManagerInternal.class);
+                    ApplicationInfo definingAppInfo = pmi.getApplicationInfo(definingPkgName, 0,
+                            SYSTEM_UID, userId);
+
+                    if (definingAppInfo == null) {
+                        Slog.e(TAG,  "bringUpServiceInnerLocked: definingAppInfo is null");
+                        return null;
                     }
-                    if (!AswUseExecSpawning.I.get(mAm.mContext, r.userId, r.appInfo, GosPackageState.get(r.definingPackageName, r.userId))) {
+
+                    if (!AswUseExecSpawning.I.get(mAm.mContext, userId, definingAppInfo, GosPackageState.get(definingPkgName, userId))) {
                         // app zygotes are pointless when exec spawning is used
-                        hostingRecord = HostingRecord.byAppZygote_(r.instanceName, r.definingPackageName,
+                        hostingRecord = HostingRecord.byAppZygote_(r.instanceName, definingPkgName,
                                 r.definingUid, r.serviceInfo.processName);
                     }
                 }

@@ -1103,7 +1103,7 @@ public class ZygoteProcess {
         try (var zygoteSocket = new LocalSocket()) {
             // The following loop is a lighter-weight variant of waitForConnectionToZygote(). Note
             // that both mLock and the global ActivityManagerService lock are held at this point.
-            // zygote_compat startup/ usually completes in under 2 seconds. Starting zygote_compat
+            // zygote_compat startup usually completes in under 2 seconds. Starting zygote_compat
             // lazily saves ~200 MiB of RAM as of Android 16 QPR2 when zygote_compat isn't needed.
             final int TIMEOUT_MS = 20_000;
             final int RETRY_DELAY_MS = 10;
