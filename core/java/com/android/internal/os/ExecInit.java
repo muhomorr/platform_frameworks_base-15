@@ -1,5 +1,6 @@
 package com.android.internal.os;
 
+import android.annotation.Nullable;
 import android.os.Process;
 import android.os.Trace;
 import android.system.ErrnoException;
@@ -7,6 +8,9 @@ import android.system.Os;
 import android.system.OsConstants;
 import android.util.Slog;
 import android.util.TimingsTraceLog;
+
+import java.util.Arrays;
+
 import dalvik.system.VMRuntime;
 
 /**
@@ -38,14 +42,17 @@ public class ExecInit {
         // Parse the runtime_flags.
         int runtimeFlags = Integer.parseInt(args[1], 10);
 
+        long[] disabledCompatChanges = longArrayFromString(args[2]);
+        long[] enabledCompatChanges = longArrayFromString(args[3]);
+
         // Mimic system Zygote preloading.
         ZygoteInit.preload(new TimingsTraceLog("ExecInitTiming",
                 Trace.TRACE_TAG_DALVIK), false);
 
         // Launch the application.
-        String[] runtimeArgs = new String[args.length - 2];
-        System.arraycopy(args, 2, runtimeArgs, 0, runtimeArgs.length);
-        Runnable r = execInit(targetSdkVersion, runtimeArgs);
+        String[] runtimeArgs = new String[args.length - 4];
+        System.arraycopy(args, 4, runtimeArgs, 0, runtimeArgs.length);
+        Runnable r = execInit(targetSdkVersion, disabledCompatChanges, enabledCompatChanges, runtimeArgs);
 
         Zygote.nativeHandleRuntimeFlags(runtimeFlags);
 
@@ -72,9 +79,10 @@ public class ExecInit {
      * @param args Arguments for {@link RuntimeInit#main}.
      */
     public static void execApplication(String niceName, int targetSdkVersion,
-            String instructionSet, int runtimeFlags, String[] args) {
+            String instructionSet, int runtimeFlags, long[] disabledCompatChanges,
+            long[] enabledCompatChanges, String[] args) {
         int niceArgs = niceName == null ? 0 : 1;
-        int baseArgs = 6 + niceArgs;
+        int baseArgs = 8 + niceArgs;
         String[] argv = new String[baseArgs + args.length];
         if (VMRuntime.is64BitInstructionSet(instructionSet)) {
             argv[0] = "/system/bin/app_process64";
@@ -89,6 +97,8 @@ public class ExecInit {
         argv[3 + niceArgs] = "com.android.internal.os.ExecInit";
         argv[4 + niceArgs] = Integer.toString(targetSdkVersion);
         argv[5 + niceArgs] = Integer.toString(runtimeFlags);
+        argv[6 + niceArgs] = longArrayToString(disabledCompatChanges);
+        argv[7 + niceArgs] = longArrayToString(enabledCompatChanges);
         System.arraycopy(args, 0, argv, baseArgs, args.length);
 
         WrapperInit.preserveCapabilities();
@@ -132,7 +142,9 @@ public class ExecInit {
      * @param targetSdkVersion target SDK version
      * @param argv arg strings
      */
-    private static Runnable execInit(int targetSdkVersion, String[] argv) {
+    private static Runnable execInit(int targetSdkVersion,
+            @Nullable long[] disabledCompatChanges, @Nullable long[] enabledCompatChanges,
+            String[] argv) {
         if (RuntimeInit.DEBUG) {
             Slog.d(RuntimeInit.TAG, "RuntimeInit: Starting application from exec");
         }
@@ -159,6 +171,34 @@ public class ExecInit {
         if (Process.isIsolated()) {
             System.gc();
         }
-        return RuntimeInit.applicationInit(targetSdkVersion, /*disabledCompatChanges*/ null, argv, classLoader);
+        return RuntimeInit.applicationInit(targetSdkVersion, disabledCompatChanges, enabledCompatChanges, argv, classLoader);
+    }
+
+    private static String longArrayToString(@Nullable long[] arr) {
+        if (arr == null) {
+            return "null";
+        }
+        var b = new StringBuilder(arr.length * 20);
+        for (int i = 0; i < arr.length; ++i) {
+            b.append(arr[i]);
+            if (i == arr.length - 1) {
+                break;
+            }
+            b.append(',');
+        }
+        return b.toString();
+    }
+
+    @Nullable
+    private static long[] longArrayFromString(String s) {
+        if (s.equals("null")) {
+            return null;
+        }
+        String[] strs = s.split(",");
+        long[] res = new long[strs.length];
+        for (int i = 0; i < strs.length; ++i) {
+            res[i] = Long.parseLong(strs[i]);
+        }
+        return res;
     }
 }
