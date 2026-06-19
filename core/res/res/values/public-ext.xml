@@ -12,6 +12,9 @@
     </staging-public-group>
 
     <staging-public-group type="drawable" first-id="0x0194f000">
+        <public name="ic_update"/>
+        <public name="ic_pending"/>
+        <public name="ic_error"/>
     </staging-public-group>
 
     <staging-public-group type="integer" first-id="0x018ef000">
@@ -39,5 +42,11 @@
         <public name="aerr_show_details"/>
         <public name="config_gnssPsdsType"/>
         <public name="bluetooth_auto_off_attribution_label"/>
+        <public name="bg_dexopt_notif_ch_title"/>
+        <public name="bg_dexopt_notif_title"/>
+        <public name="bg_dexopt_notif_text"/>
+        <public name="bg_dexopt_completed_notif_ch_title"/>
+        <public name="bg_dexopt_completed_notif_title"/>
+        <public name="bg_dexopt_completed_notif_text"/>
     </staging-public-group>
 </resources>
