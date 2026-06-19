@@ -17,6 +17,8 @@
         <public name="setting_default_restrict_storage_dyn_code_loading"/>
         <public name="setting_default_restrict_webview_dyn_code_loading"/>
         <public name="setting_default_force_app_memtag"/>
+        <public name="config_usbPortSecuritySupported"/>
+        <public name="config_usb_port_security_applies_to_pogo_pins"/>        
     </staging-public-group>
 
     <staging-public-group type="drawable" first-id="0x0194f000">
@@ -68,5 +70,6 @@
         <public name="notif_hmalloc_crash_title"/>
         <public name="notif_memory_dcl_title"/>
         <public name="notif_storage_dcl_title"/>
+        <public name="usb_port_security_error_title"/>
     </staging-public-group>
 </resources>
