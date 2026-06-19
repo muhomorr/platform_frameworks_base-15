@@ -19,6 +19,7 @@
         <public name="setting_default_force_app_memtag"/>
         <public name="config_usbPortSecuritySupported"/>
         <public name="config_usb_port_security_applies_to_pogo_pins"/>        
+        <public name="config_has_alternative_touchscreen_mode"/>
     </staging-public-group>
 
     <staging-public-group type="drawable" first-id="0x0194f000">
