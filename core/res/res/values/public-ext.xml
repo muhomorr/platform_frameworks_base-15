@@ -1,31 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <staging-public-group type="array" first-id="0x0195f000">
+        <!-- @hide -->
         <public name="system_browser_package_names"/>
+        <!-- @hide -->
         <public name="config_httpsTimeUrls"/>
+        <!-- @hide -->
         <public name="system_pkgs_allowed_memory_dyn_code_loading_by_default"/>
+        <!-- @hide -->
         <public name="system_pkgs_allowed_storage_dyn_code_loading_by_default"/>
+        <!-- @hide -->
         <public name="system_pkgs_allowed_webview_dyn_code_loading_by_default"/>
+        <!-- @hide -->
         <public name="read_additional_security_state_known_signers"/>
     </staging-public-group>
 
     <staging-public-group type="bool" first-id="0x018bf000">
+        <!-- @hide -->
         <public name="setting_default_allow_disabling_hardening_via_app_compat_config"/>
+        <!-- @hide -->
         <public name="config_Google_apps_can_have_special_access_to_accelerators"/>
+        <!-- @hide -->
         <public name="config_GoogleCamera_needs_seinfo_for_access_to_accelerators"/>
+        <!-- @hide -->
         <public name="setting_default_allow_native_debugging"/>
+        <!-- @hide -->
         <public name="setting_default_restrict_memory_dyn_code_loading"/>
+        <!-- @hide -->
         <public name="setting_default_restrict_storage_dyn_code_loading"/>
+        <!-- @hide -->
         <public name="setting_default_restrict_webview_dyn_code_loading"/>
+        <!-- @hide -->
         <public name="setting_default_force_app_memtag"/>
+        <!-- @hide -->
         <public name="config_usbPortSecuritySupported"/>
+        <!-- @hide -->
         <public name="config_usb_port_security_applies_to_pogo_pins"/>        
+        <!-- @hide -->
         <public name="config_has_alternative_touchscreen_mode"/>
     </staging-public-group>
 
     <staging-public-group type="drawable" first-id="0x0194f000">
+        <!-- @hide -->
         <public name="ic_update"/>
+        <!-- @hide -->
         <public name="ic_pending"/>
+        <!-- @hide -->
         <public name="ic_error"/>
     </staging-public-group>
 
@@ -33,46 +53,87 @@
     </staging-public-group>
 
     <staging-public-group type="string" first-id="0x0198f000">
+        <!-- @hide -->
         <public name="config_first_party_app_source_package_name"/>
+        <!-- @hide -->
         <public name="config_systemTelephonyPackage"/>
+        <!-- @hide -->
         <public name="prototype_device_notification_title"/>
+        <!-- @hide -->
         <public name="prototype_device_notification_message"/>
+        <!-- @hide -->
         <public name="notification_channel_other_users"/>
+        <!-- @hide -->
         <public name="notification_channel_other_users_description"/>
+        <!-- @hide -->
         <public name="other_users_notification_title"/>
+        <!-- @hide -->
         <public name="other_users_notification_switch_user_action"/>
+        <!-- @hide -->
         <public name="permgrouplab_otherSensors"/>
+        <!-- @hide -->
         <public name="permgroupdesc_otherSensors"/>
+        <!-- @hide -->
         <public name="permlab_otherSensors"/>
+        <!-- @hide -->
         <public name="permdesc_otherSensors"/>
+        <!-- @hide -->
         <public name="notification_action_dont_show_again"/>
+        <!-- @hide -->
         <public name="notification_channel_missing_permission"/>
+        <!-- @hide -->
         <public name="missing_sensors_permission_title"/>
+        <!-- @hide -->
         <public name="missing_sensors_permission_message"/>
+        <!-- @hide -->
         <public name="permgrouplab_network"/>
+        <!-- @hide -->
         <public name="permgroupdesc_network"/>
+        <!-- @hide -->
         <public name="aerr_show_details"/>
+        <!-- @hide -->
         <public name="config_gnssPsdsType"/>
+        <!-- @hide -->
         <public name="bluetooth_auto_off_attribution_label"/>
+        <!-- @hide -->
         <public name="bg_dexopt_notif_ch_title"/>
+        <!-- @hide -->
         <public name="bg_dexopt_notif_title"/>
+        <!-- @hide -->
         <public name="bg_dexopt_notif_text"/>
+        <!-- @hide -->
         <public name="bg_dexopt_completed_notif_ch_title"/>
+        <!-- @hide -->
         <public name="bg_dexopt_completed_notif_title"/>
+        <!-- @hide -->
         <public name="bg_dexopt_completed_notif_text"/>
+        <!-- @hide -->
         <public name="notif_channel_exploit_protection"/>
+        <!-- @hide -->
         <public name="notif_text_tap_to_open_settings"/>
+        <!-- @hide -->
         <public name="notif_text_tap_to_see_details"/>
+        <!-- @hide -->
         <public name="notif_action_more_info"/>
+        <!-- @hide -->
         <public name="notif_native_debug_title"/>
+        <!-- @hide -->
         <public name="notif_ch_system_journal"/>
+        <!-- @hide -->
         <public name="process_crash_notif_title"/>
+        <!-- @hide -->
         <public name="fsck_error_notif_title"/>
+        <!-- @hide -->
         <public name="notif_memtag_crash_title"/>
+        <!-- @hide -->
         <public name="notif_hmalloc_crash_title"/>
+        <!-- @hide -->
         <public name="notif_memory_dcl_title"/>
+        <!-- @hide -->
         <public name="notif_storage_dcl_title"/>
+        <!-- @hide -->
         <public name="usb_port_security_error_title"/>
+        <!-- @hide -->
         <public name="deprecated_abi_message_grapheneos"/>
     </staging-public-group>
 </resources>
