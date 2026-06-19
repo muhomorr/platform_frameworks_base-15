@@ -71,5 +71,6 @@
         <public name="notif_memory_dcl_title"/>
         <public name="notif_storage_dcl_title"/>
         <public name="usb_port_security_error_title"/>
+        <public name="deprecated_abi_message_grapheneos"/>
     </staging-public-group>
 </resources>
