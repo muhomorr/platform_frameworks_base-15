@@ -37,5 +37,6 @@
         <public name="permgrouplab_network"/>
         <public name="permgroupdesc_network"/>
         <public name="aerr_show_details"/>
+        <public name="config_gnssPsdsType"/>
     </staging-public-group>
 </resources>
