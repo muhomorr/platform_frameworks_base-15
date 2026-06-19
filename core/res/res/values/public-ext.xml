@@ -3,6 +3,9 @@
     <staging-public-group type="array" first-id="0x0195f000">
         <public name="system_browser_package_names"/>
         <public name="config_httpsTimeUrls"/>
+        <public name="system_pkgs_allowed_memory_dyn_code_loading_by_default"/>
+        <public name="system_pkgs_allowed_storage_dyn_code_loading_by_default"/>
+        <public name="system_pkgs_allowed_webview_dyn_code_loading_by_default"/>
     </staging-public-group>
 
     <staging-public-group type="bool" first-id="0x018bf000">
@@ -10,6 +13,9 @@
         <public name="config_Google_apps_can_have_special_access_to_accelerators"/>
         <public name="config_GoogleCamera_needs_seinfo_for_access_to_accelerators"/>
         <public name="setting_default_allow_native_debugging"/>
+        <public name="setting_default_restrict_memory_dyn_code_loading"/>
+        <public name="setting_default_restrict_storage_dyn_code_loading"/>
+        <public name="setting_default_restrict_webview_dyn_code_loading"/>
     </staging-public-group>
 
     <staging-public-group type="drawable" first-id="0x0194f000">
@@ -59,5 +65,7 @@
         <public name="fsck_error_notif_title"/>
         <public name="notif_memtag_crash_title"/>
         <public name="notif_hmalloc_crash_title"/>
+        <public name="notif_memory_dcl_title"/>
+        <public name="notif_storage_dcl_title"/>
     </staging-public-group>
 </resources>
