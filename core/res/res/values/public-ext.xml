@@ -48,5 +48,9 @@
         <public name="bg_dexopt_completed_notif_ch_title"/>
         <public name="bg_dexopt_completed_notif_title"/>
         <public name="bg_dexopt_completed_notif_text"/>
+        <public name="notif_channel_exploit_protection"/>
+        <public name="notif_text_tap_to_open_settings"/>
+        <public name="notif_text_tap_to_see_details"/>
+        <public name="notif_action_more_info"/>
     </staging-public-group>
 </resources>
