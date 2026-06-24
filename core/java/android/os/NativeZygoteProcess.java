@@ -26,6 +26,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.os.Zygote;
+import com.android.internal.os.ZygoteExtraArgs;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -80,18 +81,27 @@ public class NativeZygoteProcess implements IZygoteProcess {
         }
     }
 
-    private static native int nativeStartNativeProcess(
+    private static native int nativeStartNativeProcess(long selinuxFlags,
             FileDescriptor fd, int uid, int gid, long startSeq, String packageName, String niceName,
             int targetSdkVersion, boolean startChildZygote, int runtimeFlags, String seInfo,
             boolean isTopApp)
             throws IOException;
 
-    private static native int nativeStartNativeChildZygote(
+    private static native int nativeStartNativeChildZygote(long selinuxFlags,
             FileDescriptor parentFd, int uid, int gid, String niceName, String seInfo,
             int targetSdkVersion, int runtimeFlags, String serverAddress, int uidRangeStart,
             int uidRangeEnd, String allowedLibPath, String librarySearchPaths, boolean isShared,
             String zipPath, String nativeSharedLibPath, String libraryPath, String preloadFunc)
             throws IOException;
+
+    private static long getSelinuxFlags(@Nullable String flatExtraArgs) {
+        if (flatExtraArgs != null) {
+            String value = flatExtraArgs.substring(flatExtraArgs.indexOf('=') + 1);
+            var extraArgs = ZygoteExtraArgs.parse(value);
+            return extraArgs.selinuxFlags;
+        }
+        return 0L;
+    }
 
     @Override
     public final Process.ProcessStartResult start(@NonNull final String processClass,
@@ -120,12 +130,17 @@ public class NativeZygoteProcess implements IZygoteProcess {
                                                   long startSeq,
                                                   @Nullable String[] zygoteArgs,
                                                   @Nullable String flatExtraArgs) {
-        checkFlagExtraArgs(flatExtraArgs);
+        // there are currently 3 custom runtime flags:
+        // - DISABLE_HARDENED_MALLOC and ENABLE_COMPAT_VA_39_BIT require exec spawning which is not
+        // currently supported for native zygote
+        // - FORCIBLY_ENABLE_MEMORY_TAGGING is low-impact and isn't needed in practice since native
+        // zygote is mainly used by Chromium browsers which opt-in to memory tagging
+        runtimeFlags &= ~Zygote.CUSTOM_RUNTIME_FLAGS;
 
         int pid;
         try {
             connectToZygote();
-            pid = nativeStartNativeProcess(mSocket.getFileDescriptor(), uid, gid, startSeq,
+            pid = nativeStartNativeProcess(getSelinuxFlags(flatExtraArgs), mSocket.getFileDescriptor(), uid, gid, startSeq,
                     packageName, niceName, targetSdkVersion, /*startChildZygote=*/false,
                     runtimeFlags, seInfo, isTopApp);
             if (pid == -1) {
@@ -153,7 +168,9 @@ public class NativeZygoteProcess implements IZygoteProcess {
                                                int uidRangeEnd,
                                                ApplicationInfo appInfo,
                                                @Nullable String flatExtraArgs) {
-        checkFlagExtraArgs(flatExtraArgs);
+        // see comment in start() above
+        runtimeFlags &= ~Zygote.CUSTOM_RUNTIME_FLAGS;
+
         // Create an unguessable address in the global abstract namespace.
         String serverAddress = processClass + "/" + UUID.randomUUID().toString();
         // The address of abstract socket should be prefixed with '@'.  LocalSocket.connect()
@@ -174,7 +191,7 @@ public class NativeZygoteProcess implements IZygoteProcess {
         int pid;
         try {
             connectToZygote();
-            pid = nativeStartNativeChildZygote(mSocket.getFileDescriptor(), uid, gid, niceName,
+            pid = nativeStartNativeChildZygote(getSelinuxFlags(flatExtraArgs), mSocket.getFileDescriptor(), uid, gid, niceName,
                     seInfo, appInfo.targetSdkVersion, runtimeFlags, serverAddressForNative,
                     uidRangeStart, uidRangeEnd, params.permittedLibsDir, params.libPath,
                     params.isShared, params.zipPath, params.nativeSharedLibs,
@@ -197,12 +214,6 @@ public class NativeZygoteProcess implements IZygoteProcess {
     @Override
     public boolean preloadApp(ApplicationInfo appInfo, String abi) {
         return false;
-    }
-
-    private static void checkFlagExtraArgs(@Nullable String flatExtraArgs) {
-        if (flatExtraArgs != null && !flatExtraArgs.equals("--flat-extra-args=0")) {
-            throw new IllegalStateException("flatExtraArgs passed to NativeZygoteProcess: " + flatExtraArgs);
-        }
     }
 
     @Override
