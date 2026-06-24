@@ -45,7 +45,7 @@ public class ZygoteExtraArgs {
         return PREFIX + String.join(SEPARATOR, arr);
     }
 
-    static ZygoteExtraArgs parse(String flat) {
+    public static ZygoteExtraArgs parse(String flat) {
         String[] arr = flat.split(SEPARATOR);
         long selinuxFlags = Long.parseLong(arr[IDX_SELINUX_FLAGS], 16);
         return new ZygoteExtraArgs(selinuxFlags);
